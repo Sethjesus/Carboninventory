@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>🌿 ESG 簡易碳盤查 v5.4 Final（Git 手動上傳版）</title>
+  <title>🌿 ESG 簡易碳盤查 v5.4 Final</title>
 
   <!-- PWA -->
   <meta name="theme-color" content="#16a34a" />
@@ -33,7 +33,7 @@
     .num{text-align:right}
     .month-btn{padding:.4rem .8rem;border-radius:.6rem;font-weight:700;cursor:pointer}
     .month-active{background:var(--brand);color:#fff}
-    #toast{position:fixed;right:20px;bottom:30px;background:var(--brand);color:#fff;padding:.5rem .9rem;border-radius:.7rem;font-weight:700;opacity:0;transform:translateY(14px);transition:.4s;z-index:50}
+    #toast{position:fixed;right:20px;bottom:30px;background:var(--brand);color:#fff;padding:.5rem .9rem;border-radius:.7rem;font-weight:700;opacity:0;transform:translateY(14px);transition:.4s; z-index: 50;}
     #toast.show{opacity:1;transform:translateY(0)}
   </style>
 </head>
@@ -56,7 +56,7 @@
     <div class="grid md:grid-cols-3 gap-4">
       <div>
         <label class="block text-sm mb-1">公司名稱</label>
-        <input id="companyName" type="text" value="景沛 ESG" placeholder="請輸入公司名稱">
+        <input id="companyName" type="text" value="景沛ESG" placeholder="請輸入公司名稱">
       </div>
       <div>
         <label class="block text-sm mb-1">年度（西元年）</label>
@@ -86,6 +86,20 @@
         <button id="btnPreset" class="btn">載入預設 10 項</button>
       </div>
     </div>
+
+    <!-- 預設項目建議清單 -->
+    <datalist id="itemList">
+      <option value="電力"></option>
+      <option value="水"></option>
+      <option value="交通"></option>
+      <option value="車用汽油"></option>
+      <option value="柴油"></option>
+      <option value="天然氣"></option>
+      <option value="團體膳食"></option>
+      <option value="洗潔精"></option>
+      <option value="衛生紙"></option>
+      <option value="廢(污)水處理"></option>
+    </datalist>
 
     <div class="overflow-x-auto">
       <table id="table" class="text-sm">
@@ -139,11 +153,14 @@
     </div>
   </section>
 
-  <!-- datalist：新增自選項目用 -->
-  <datalist id="itemList"></datalist>
-
   <!-- JS 主程式 -->
   <script>
+    /* ========= 可調整：你的 Git 位置 ========= */
+    const REPO_USER   = 'Sethjesus';
+    const REPO_NAME   = 'Carboninventory';
+    const REPO_BRANCH = 'main'; // 或 'gh-pages'
+    /* ======================================= */
+
     // ===== 全域狀態 =====
     const tbody = document.getElementById('tbody');
     const sumAct = document.getElementById('sumAct');
@@ -203,7 +220,15 @@
         const b = document.createElement('button');
         b.textContent = m+'月';
         b.className = 'month-btn ' + (m===currentMonth?'month-active':'');
-        b.onclick = () => { save(); currentMonth = m; if(!store[m]) store[m]=[]; renderRows(); calc(); buildMonthTabs(); };
+
+        b.onclick = () => {
+          save(); 
+          currentMonth = m; 
+          if(!store[m]) store[m]=[]; 
+          renderRows(); 
+          calc(); 
+          buildMonthTabs(); 
+        };
         wrap.appendChild(b);
       }
     }
@@ -227,7 +252,7 @@
       const s = parseInt(o.scope||3);
       const tr=document.createElement('tr');
       tr.innerHTML=`
-        <td><input list="itemList" type="text" value="${o.name||''}" placeholder="輸入或選擇項目"></td>
+        <td><input type="text" list="itemList" value="${o.name||''}" placeholder="可輸入或選擇預設項目"></td>
         <td><input type="text" value="${o.category||''}"></td>
         <td>
           <select>
@@ -251,7 +276,7 @@
       tbody.innerHTML=''; PRESET.forEach(p=>tbody.appendChild(trPresetRow({...p,activity:0}))); save(); calc();
     };
 
-    // ===== 儲存/載入（本機） =====
+    // ===== 儲存/載入（LocalStorage） =====
     function gatherRows(){
       return [...tbody.querySelectorAll('tr')].map(tr=>{
         const t=tr.children;
@@ -279,7 +304,7 @@
       });
     }
 
-    // ===== 計算與圖表（以目前月份為主） =====
+    // ===== 計算與圖表（當月資料） =====
     function calc(){
       let total=0, actSum=0;
       [...tbody.querySelectorAll('tr')].forEach(tr=>{
@@ -306,7 +331,7 @@
         const s='S'+(r.scope||3);
         const emi=(r.activity||0)*(r.factor||0);
         byScope[s]+=emi;
-        byDept[r.dept]=(byDept[r.dept]||0)+emi;
+        const d=r.dept||'未填'; byDept[d]=(byDept[d]||0)+emi;
       });
 
       charts.items?.destroy(); charts.scopes?.destroy(); charts.dept?.destroy();
@@ -377,7 +402,98 @@
       XLSX.writeFile(wb, `${company}_碳盤查_${year}_全年.xlsx`);
     };
 
-    // ===== PDF 匯出（目前月份） =====
+    // 匯入 Excel（覆蓋目前月份）
+    document.getElementById('fileImportXlsx').onchange=(e)=>{
+      const f=e.target.files[0]; if(!f) return;
+      const reader=new FileReader();
+      reader.onload=(evt)=>{
+        const wb=XLSX.read(new Uint8Array(evt.target.result),{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const arr=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+        if(arr.length<=1){alert('檔案沒有資料');return;}
+        // 找到標頭列（跳過公司/年度）
+        let startIdx=0; for(let i=0;i<arr.length;i++){ if(String(arr[i][0]).includes('項目')){ startIdx=i; break; } }
+        const rowsData=arr.slice(startIdx+1);
+        tbody.innerHTML='';
+        rowsData.forEach(row=>{
+          if(row.every(v=>String(v).trim()==='')) return;
+          const scope=parseInt(String(row[2]).replace(/[^\d]/g,''))||3;
+          const obj={name:row[0],category:row[1],scope,activity:parseFloat(row[3])||0,unit:row[4],factor:parseFloat(row[5])||0,dept:row[6]||'總部'};
+          if(SCOPE_FIX[obj.name]) tbody.appendChild(trPresetRow(obj)); else tbody.appendChild(trCustomRow(obj));
+        });
+        save(); calc(); e.target.value='';
+      };
+      reader.readAsArrayBuffer(f);
+    };
+
+    // ===== Git JSON：下載與載入 =====
+    function slugifyCompany(s){
+      return (s||'company')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g,'_')
+        .replace(/[^\w\-一-龥]/g,'_'); // 保留中英文數字底線
+    }
+
+    function buildGitUrl(slug, year){
+      // raw URL
+      return `https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/${REPO_BRANCH}/data/${slug}_${year}.json`;
+    }
+
+    async function loadFromGit(){
+      try{
+        const meta = JSON.parse(localStorage.getItem(META_KEY) || '{}');
+        const company = (meta.company || companyNameEl.value || '').trim();
+        const year    = meta.year || parseInt(fiscalYearEl.value) || new Date().getFullYear();
+        if(!company){ alert('請先填公司名稱'); return; }
+        const slug = slugifyCompany(company);
+        const url = buildGitUrl(slug, year);
+
+        const r = await fetch(url, {cache:'no-store'});
+        if(!r.ok){ throw new Error('讀取失敗（找不到檔案或權限問題）'); }
+        const json = await r.json();
+        // 預期結構：{meta:{company,year}, store:{1:[],...}, updatedAt:...}
+        if(json?.meta) localStorage.setItem(META_KEY, JSON.stringify(json.meta));
+        if(json?.store) localStorage.setItem('carbonStore', JSON.stringify(json.store));
+        // 更新記憶資料
+        loadMeta();
+        store = JSON.parse(localStorage.getItem('carbonStore') || '{}');
+        if(!store[currentMonth]) currentMonth = 1;
+        renderRows(); calc(); buildMonthTabs();
+        alert('已從 Git 載入資料');
+      }catch(err){
+        alert('載入失敗：' + err.message);
+      }
+    }
+
+    function downloadJson(){
+      // 將全部月份 + meta 打包供手動上傳到 repo 的 data/ 夾
+      const meta = JSON.parse(localStorage.getItem(META_KEY)||'{}');
+      const data = {
+        meta: {
+          company: (meta.company || companyNameEl.value || '公司名稱').trim(),
+          year: meta.year || parseInt(fiscalYearEl.value) || new Date().getFullYear()
+        },
+        store: JSON.parse(localStorage.getItem('carbonStore')||'{}'),
+        updatedAt: new Date().toISOString()
+      };
+      // 安全檔名
+      const slug = slugifyCompany(data.meta.company);
+      const fname = `data/${slug}_${data.meta.year}.json`;
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json;charset=utf-8'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      alert('已下載 JSON，請上傳到 Git repo 的 data/ 資料夾後 Commit。');
+    }
+
+    document.getElementById('btnLoadGit').onclick = loadFromGit;
+    document.getElementById('btnDownloadJson').onclick = downloadJson;
+
+    // ===== PDF 匯出（當月圖表 + 公司/年月） =====
     function rafWait(frames=2){ return new Promise(res=>{ const step=n=>{ if(n<=0) return res(); requestAnimationFrame(()=>step(n-1)); }; step(frames); }); }
     document.getElementById('exportPDF').onclick = async ()=>{
       try{
@@ -386,7 +502,6 @@
         const meta=JSON.parse(localStorage.getItem(META_KEY)||'{}');
         const company=(meta.company||companyNameEl.value||'公司名稱').trim();
         const year=meta.year||parseInt(fiscalYearEl.value)||new Date().getFullYear();
-        const month=currentMonth;
 
         const c1=document.getElementById('chartItems');
         const c2=document.getElementById('chartScopes');
@@ -397,12 +512,12 @@
 
         const {PDFDocument,StandardFonts,rgb}=PDFLib;
         const pdf=await PDFDocument.create();
-        const page=pdf.addPage([842,595]);
+        const page=pdf.addPage([842,595]); // A4 橫式
         const font=await pdf.embedFont(StandardFonts.Helvetica);
         page.setFont(font); page.setFontSize(18);
-        page.drawText(`${company}｜碳盤查月報（${year} 年 ${month} 月）`,{x:40,y:560,color:rgb(0,0.4,0.2)});
+        page.drawText(`${company}｜年度碳盤查報表（${year} 年 ${currentMonth} 月）`,{x:40,y:560,color:rgb(0,0.4,0.2)});
         page.setFontSize(12);
-        page.drawText(`總排放量（${month}月）：${sumTotal.textContent} kgCO₂e`,{x:40,y:535});
+        page.drawText(`總排放量：${sumTotal.textContent} kgCO₂e`,{x:40,y:535});
 
         const p1=await pdf.embedPng(img1), p2=await pdf.embedPng(img2), p3=await pdf.embedPng(img3);
         page.drawImage(p1,{x:40,y:300,width:360,height:200});
@@ -413,69 +528,10 @@
         const a=document.createElement('a');
         a.href=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
         const safeCompany=company.replace(/[\\\/:*?"<>|]/g,'_');
-        a.download=`${safeCompany}_ESG_Report_${year}_M${month}.pdf`;
+        a.download=`${safeCompany}_ESG_Report_${year}_M${currentMonth}.pdf`;
         a.click();
       }catch(err){ alert('PDF 匯出失敗：'+err.message); }
     };
-
-    // ===== Git 手動流程 =====
-    function slugifyCompany(name){
-      return (name||'').trim().replace(/[\\\/:*?"<>|.\s]+/g,'_').toLowerCase();
-    }
-    function getCurrentMeta(){
-      const meta = JSON.parse(localStorage.getItem(META_KEY)||'{}');
-      return {
-        company: (meta.company || companyNameEl.value || '公司名稱').trim(),
-        year: meta.year || parseInt(fiscalYearEl.value) || new Date().getFullYear()
-      };
-    }
-
-    async function loadFromGit(){
-      const { company, year } = getCurrentMeta();
-      const slug = slugifyCompany(company);
-      const url = `https://raw.githubusercontent.com/Sethjesus/Carboninventory/main/data/${slug}_${year}.json`;
-      try{
-        const res = await fetch(url, { cache: 'no-store' });
-        if(!res.ok){ alert('找不到雲端資料（請先把 JSON 上傳到 repo 的 data/）'); return; }
-        const json = await res.json();
-        store = json.months || {};
-        // 更新下拉候選
-        const dl = document.getElementById('itemList');
-        const names = new Set();
-        Object.values(store).flat().forEach(r=>{ if(r?.name) names.add(r.name) });
-        ['電力','水','交通','車用汽油','柴油','天然氣','團體膳食','洗潔精','衛生紙','廢(污)水處理'].forEach(n=>names.add(n));
-        dl.innerHTML = [...names].map(n=>`<option value="${n}"></option>`).join('');
-        if(!store[currentMonth]) currentMonth = new Date().getMonth()+1;
-        renderRows(); calc(); updateCharts();
-        toastIt('已從 Git 載入');
-      }catch(e){
-        alert('載入失敗：'+e.message);
-      }
-    }
-
-    function downloadJson(){
-      save(); // 先確保最新
-      const { company, year } = getCurrentMeta();
-      const payload = { company, year, months: store };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const slug = slugifyCompany(company);
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `${slug}_${year}.json`; // 請手動放到 repo 的 data/ 目錄
-      a.click();
-      URL.revokeObjectURL(a.href);
-      toastIt('已下載 JSON，請上傳到 Git 的 data/ 目錄');
-    }
-
-    function toastIt(msg){
-      const prev = toast.textContent;
-      toast.textContent = msg;
-      toast.classList.add('show');
-      setTimeout(()=>{ toast.classList.remove('show'); toast.textContent=prev; }, 1500);
-    }
-
-    document.getElementById('btnLoadGit').onclick = loadFromGit;
-    document.getElementById('btnDownloadJson').onclick = downloadJson;
 
     // ===== 主題 & 初始化 =====
     function applyTheme(t){ document.documentElement.classList.toggle('dark', t==='dark'); localStorage.setItem(LS_THEME,t); }
@@ -484,8 +540,6 @@
 
     function init(){
       buildMonthTabs();
-      // 預設下拉
-      document.getElementById('itemList').innerHTML = PRESET.map(p=>`<option value="${p.name}"></option>`).join('');
       if(!store[currentMonth]) store[currentMonth]=[];
       if(store[currentMonth].length===0){ tbody.innerHTML=''; PRESET.forEach(p=>tbody.appendChild(trPresetRow({...p,activity:0}))); save(); }
       renderRows(); calc();

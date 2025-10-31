@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>🌿 ESG 簡易碳盤查 v5.4 Final（Git 版）</title>
+  <title>🌿 ESG 簡易碳盤查 v5.4 Final（Git 手動上傳版）</title>
 
   <!-- PWA -->
   <meta name="theme-color" content="#16a34a" />
@@ -65,7 +65,7 @@
       <div class="flex items-end gap-2 flex-wrap">
         <button id="saveMeta" class="btn">儲存公司/年度</button>
         <button id="btnLoadGit" class="btn-ghost">從 Git 載入</button>
-        <button id="btnSaveGit" class="btn">存到 Git</button>
+        <button id="btnDownloadJson" class="btn">下載 JSON（上傳到 Git）</button>
         <span id="metaSaved" class="text-sm text-slate-500"></span>
       </div>
     </div>
@@ -377,7 +377,7 @@
       XLSX.writeFile(wb, `${company}_碳盤查_${year}_全年.xlsx`);
     };
 
-    // ===== PDF 匯出（以目前月份圖表產出，標題含公司＋年月） =====
+    // ===== PDF 匯出（目前月份） =====
     function rafWait(frames=2){ return new Promise(res=>{ const step=n=>{ if(n<=0) return res(); requestAnimationFrame(()=>step(n-1)); }; step(frames); }); }
     document.getElementById('exportPDF').onclick = async ()=>{
       try{
@@ -397,7 +397,7 @@
 
         const {PDFDocument,StandardFonts,rgb}=PDFLib;
         const pdf=await PDFDocument.create();
-        const page=pdf.addPage([842,595]); // A4 橫式
+        const page=pdf.addPage([842,595]);
         const font=await pdf.embedFont(StandardFonts.Helvetica);
         page.setFont(font); page.setFontSize(18);
         page.drawText(`${company}｜碳盤查月報（${year} 年 ${month} 月）`,{x:40,y:560,color:rgb(0,0.4,0.2)});
@@ -418,7 +418,7 @@
       }catch(err){ alert('PDF 匯出失敗：'+err.message); }
     };
 
-    // ===== Git 讀寫（Netlify Functions） =====
+    // ===== Git 手動流程 =====
     function slugifyCompany(name){
       return (name||'').trim().replace(/[\\\/:*?"<>|.\s]+/g,'_').toLowerCase();
     }
@@ -436,10 +436,10 @@
       const url = `https://raw.githubusercontent.com/Sethjesus/Carboninventory/main/data/${slug}_${year}.json`;
       try{
         const res = await fetch(url, { cache: 'no-store' });
-        if(!res.ok){ alert('找不到雲端資料，仍使用本機資料'); return; }
+        if(!res.ok){ alert('找不到雲端資料（請先把 JSON 上傳到 repo 的 data/）'); return; }
         const json = await res.json();
         store = json.months || {};
-        // 下拉候選
+        // 更新下拉候選
         const dl = document.getElementById('itemList');
         const names = new Set();
         Object.values(store).flat().forEach(r=>{ if(r?.name) names.add(r.name) });
@@ -453,21 +453,18 @@
       }
     }
 
-    async function saveToGit(){
+    function downloadJson(){
+      save(); // 先確保最新
       const { company, year } = getCurrentMeta();
-      save(); // 先把目前月回存到 store
-      try{
-        const resp = await fetch('/.netlify/functions/save', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ company, year, months: store })
-        });
-        const r = await resp.json();
-        if(!resp.ok) throw new Error(r.error || resp.statusText);
-        toastIt('已存到 Git ✅');
-      }catch(e){
-        alert('存到 Git 失敗：'+e.message);
-      }
+      const payload = { company, year, months: store };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const slug = slugifyCompany(company);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${slug}_${year}.json`; // 請手動放到 repo 的 data/ 目錄
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toastIt('已下載 JSON，請上傳到 Git 的 data/ 目錄');
     }
 
     function toastIt(msg){
@@ -478,7 +475,7 @@
     }
 
     document.getElementById('btnLoadGit').onclick = loadFromGit;
-    document.getElementById('btnSaveGit').onclick = saveToGit;
+    document.getElementById('btnDownloadJson').onclick = downloadJson;
 
     // ===== 主題 & 初始化 =====
     function applyTheme(t){ document.documentElement.classList.toggle('dark', t==='dark'); localStorage.setItem(LS_THEME,t); }
@@ -487,7 +484,7 @@
 
     function init(){
       buildMonthTabs();
-      // 預設下拉（先放預設10項）
+      // 預設下拉
       document.getElementById('itemList').innerHTML = PRESET.map(p=>`<option value="${p.name}"></option>`).join('');
       if(!store[currentMonth]) store[currentMonth]=[];
       if(store[currentMonth].length===0){ tbody.innerHTML=''; PRESET.forEach(p=>tbody.appendChild(trPresetRow({...p,activity:0}))); save(); }

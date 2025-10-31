@@ -1,1039 +1,501 @@
-
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🌿 ESG 簡易碳盤查 v5.4 Final（Git 版）</title>
+
+  <!-- PWA -->
   <meta name="theme-color" content="#16a34a" />
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="mobile-web-app-capable" content="yes">
-  <title>🐾 JP ESG 碳盤樂 v5.4.4（CSV 合併/覆蓋＋Top-Right Toast）</title>
+  <link rel="manifest" href="manifest.json" />
 
-  <!-- ✅ PWA -->
-<link rel="manifest" href="./manifest.json">
-<link rel="apple-touch-icon" href="./icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
-<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
-
+  <!-- 套件（CDN） -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
   <style>
-    :root{ --ink:#0f172a; --panel:#ffffffcc; --shadow:0 10px 24px rgba(0,0,0,.08); --bg:#f7fbff; --ok:#16a34a; --warn:#f59e0b; --bad:#ef4444; }
-    *{box-sizing:border-box} html,body{height:100%}
-    body{margin:0;font-family:ui-rounded,"Microsoft JhengHei",system-ui,-apple-system,Segoe UI,Roboto,Noto Sans,sans-serif;color:var(--ink);
-      background:radial-gradient(1200px 800px at 20% -10%, #e6f5ff 0, transparent 60%),radial-gradient(1200px 800px at 120% 0, #ecfff3 0, transparent 60%),var(--bg);
-      display:flex;align-items:center;justify-content:center;padding:14px}
-    .app{max-width:1240px;width:100%}
-    .topbar{display:flex;gap:10px;justify-content:space-between;align-items:center;background:var(--panel);backdrop-filter:blur(10px);border-radius:18px;padding:10px 12px;box-shadow:var(--shadow)}
-    .brand{display:flex;align-items:center;gap:10px;font-weight:900}
-    .brand img{width:34px;height:34px;border-radius:50%;box-shadow:0 4px 0 #22c55e}
-    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#fff;box-shadow:var(--shadow);font-weight:800}
-    .btn{border:none;background:#fff;border-radius:999px;padding:9px 14px;font-weight:800;cursor:pointer;box-shadow:0 6px 0 #e5e7eb}
-    .btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
-    .btn.primary{background:linear-gradient(180deg,#bef264,#86efac);color:#064e3b;box-shadow:0 6px 0 #22c55e}
-    .btn.blue{background:linear-gradient(180deg,#bae6fd,#93c5fd);color:#08324a;box-shadow:0 6px 0 #60a5fa}
-    .arena{margin-top:12px}
-    .board{position:relative;height:min(64vh,620px);min-height:500px;width:100%;border-radius:22px;overflow:hidden;outline:6px solid #fff;border:3px dashed #bbf7d0;box-shadow:var(--shadow)}
-    .bg-forest{background:linear-gradient(180deg,#ecfdf5,#e0ffe9)}
-    .bg-city{background:linear-gradient(180deg,#eff6ff,#e0f2ff)}
-    .bg-ocean{background:linear-gradient(180deg,#e0f2fe,#e0f7fa)}
-    .back-illus{position:absolute;right:8px;bottom:6px;font-size:56px;opacity:.25;pointer-events:none}
-    .hud{position:absolute;left:10px;top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;z-index:2}
-    .hud .tag{border-radius:999px;padding:6px 10px;background:#fff;box-shadow:var(--shadow);font-weight:800}
-    .goalbar{position:absolute;left:10px;right:10px;top:46px;height:10px;background:#fff;border-radius:999px;box-shadow:var(--shadow)}
-    .fill{height:100%;width:0%;background:linear-gradient(90deg,#86efac,#60a5fa);border-radius:999px;transition:width .25s}
-    .hpbar{position:absolute;left:10px;right:10px;top:64px;height:12px;background:#fee2e2;border-radius:12px;overflow:hidden;box-shadow:var(--shadow);display:none}
-    .hpfill{height:100%;width:100%;background:linear-gradient(90deg,#fecaca,#ef4444)}
-    .token{position:absolute;width:84px;height:84px;cursor:pointer}
-    .bubble{position:absolute;inset:0;border-radius:22px;background:radial-gradient(circle at 30% 25%, #fff 0 30%, #eafff0 68%);border:3px solid #bbf7d0;box-shadow:0 10px 20px rgba(22,163,74,.18);display:grid;place-items:center;transition:transform .12s}
-    .bubble:active{transform:scale(.92)}
-    .emoji{font-size:40px;filter:drop-shadow(0 3px 0 rgba(0,0,0,.08))}
-    .tree{position:absolute;bottom:6px;left:0;transform:translateX(var(--x,0));font-size:24px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.15))}
-    .toast{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;padding:8px 12px;box-shadow:var(--shadow);font-weight:900;opacity:0;z-index:3}
-    .toast.show{animation:toast .9s ease both}
-    @keyframes toast{0%{opacity:0;transform:translate(-50%,-50%) scale(.9)}14%{opacity:1;transform:translate(-50%,-50%) scale(1)}86%{opacity:1}100%{opacity:0}}
-    .boss{position:absolute;width:130px;height:130px;border-radius:50%;left:50%;top:56%;transform:translate(-50%,-50%);background:radial-gradient(circle at 40% 35%, #374151 0 45%, #111827 70%);box-shadow:0 10px 30px rgba(0,0,0,.25), inset 0 -8px 20px rgba(255,255,255,.05);display:grid;place-items:center;z-index:1}
-    .boss::after{content:"👀";font-size:40px;transform:translateY(-6px)}
-    .boss.aura{box-shadow:0 10px 30px rgba(0,0,0,.25),0 0 22px rgba(239,68,68,.6), inset 0 -8px 20px rgba(255,255,255,.05)}
-    .shockwave{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;border:3px solid rgba(239,68,68,.8);opacity:.8;animation:boom 1.2s ease-out both;z-index:1}
-    @keyframes boom{from{width:20px;height:20px;opacity:.85}to{width:500px;height:500px;opacity:0}}
-    .missile{position:absolute;width:18px;height:18px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px rgba(239,68,68,.7);z-index:1}
-    .drain{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);width:190px;height:190px;border-radius:50%;box-shadow:inset 0 0 22px rgba(59,130,246,.55);opacity:.85;animation:pulse 1.2s ease-in-out infinite;z-index:1}
-    @keyframes pulse{0%{transform:translate(-50%,-50%) scale(.9)}50%{transform:translate(-50%,-50%) scale(1.05)}100%{transform:translate(-50%,-50%) scale(.9)}
-    }
-    .confetti{position:fixed;width:8px;height:14px;top:-10px;left:50%;border-radius:2px;opacity:.9;animation:fall 1.6s linear forwards;z-index:5}
-    @keyframes fall{to{transform:translateY(120vh) rotate(540deg);opacity:0}}
-    .fade-enter{animation:fadeIn .35s ease both}
-    @keyframes fadeIn{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}
-    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.25);z-index:50}
-    .modal.show{display:flex}
-    .card{background:#fff;border-radius:18px;padding:18px;box-shadow:var(--shadow);width:min(95vw,1040px)}
-    .card h3{margin:0 0 8px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
-    .node{border:2px dashed #d1fae5;border-radius:12px;padding:10px}
-    .tabbar{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px;overflow-x:auto;white-space:nowrap}
-
-    /* --- Quest Pager --- */
-    .pager-wrap{display:flex;flex-direction:column;gap:10px}
-    .pager{position:relative;overflow:hidden;border-radius:14px}
-    .pager-track{display:flex;transition:transform .28s ease;will-change: transform;}
-    .pager-page{min-width:100%;padding:10px;box-sizing:border-box}
-    .pager-nav{display:flex;gap:8px;align-items:center;justify-content:center}
-    .pager-dot{width:8px;height:8px;border-radius:50%;background:#e5e7eb}
-    .pager-dot.active{background:#16a34a}
-    .pager-btn{border:none;border-radius:10px;padding:6px 10px;background:#fff;box-shadow:0 4px 0 #e5e7eb;cursor:pointer}
-
-    /* ✅ 全橫列版任務樣式（橫向捲動） */
-    .todo-list{list-style:none;padding:0;margin:8px 0;display:flex;flex-wrap:nowrap;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory}
-    .todo-list::-webkit-scrollbar{height:8px}
-    .todo-list::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
-    .todo-list li{flex:0 0 300px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);scroll-snap-align:start;display:flex;flex-direction:column;justify-content:space-between}
-    .todo-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-    .todo-top label{display:flex;align-items:center;gap:10px;font-size:16px;line-height:1.4}
-    .todo-badge{font-size:13px;color:#0f172a99;background:#f3f4f6;border-radius:10px;padding:2px 8px;min-width:64px;text-align:center}
-    .todo-bar{height:6px;border-radius:6px;background:#f1f5f9;overflow:hidden;margin-top:4px}
-    .todo-fill{height:100%;width:0;background:linear-gradient(90deg,#86efac,#60a5fa)}
-
-    /* ✅ GHG 14064 對照擴充表格 */
-    .ghg-table{width:100%;border-collapse:collapse;margin-top:12px;min-width:820px}
-    .ghg-table th,.ghg-table td{border:1px solid #d1d5db;padding:6px 10px;text-align:left;vertical-align:top}
-    .ghg-table th{background:#f3f4f6}
-    .ghg-table caption{caption-side:top;font-weight:700;margin-bottom:8px}
-
-    @media (max-width:680px){ .controls{gap:6px} .chip{padding:6px 10px} .token{width:74px;height:74px} }
-
-    /* ===== Quest 版面一致化修正 ===== */
-    #questModal .pager-page { padding: 0; }
-    #questModal .pager-page > .grid { margin: 0; display:block; }
-    #questModal .pager-page > .grid > .node { width: 100%; }
-
-    #questModal .node .node { padding: 0; border: none; box-shadow: none; }
-
-    #questModal .todo-list { padding: 0 8px; margin: 8px 0; }
-    #questModal .todo-list li { flex: 0 0 280px; }
-    #questModal .todo-top { margin-bottom: 6px; }
-
-    #questModal .ghg-table { min-width: 960px; width: 100%; }
-    #questModal .node[style*="overflow:auto"] { max-width: 100%; }
-
-    #questModal .card { max-height: 86vh; overflow: auto; }
-    #questModal { overflow-y: auto; }
-
-    /* 📲 安裝按鈕（內嵌在控制列） */
-    #installBtn {
-      display:none;
-      box-shadow:0 6px 0 #22c55e;
-      background:linear-gradient(180deg,#bbf7d0,#86efac);
-      color:#064e3b;
-    }
-
-    /* 🔁 匯入模式切換小鈕（右上角） */
-    .mode-pill{
-      border:none;border-radius:999px;padding:6px 10px;font-weight:800;
-      background:#f1f5f9;color:#0f172a; box-shadow:0 4px 0 #e5e7eb; cursor:pointer;
-    }
-    .mode-pill.merge{background:linear-gradient(180deg,#e2fbe8,#bcf0da); color:#065f46;}
-    .mode-pill.over{background:linear-gradient(180deg,#fee2e2,#fecaca); color:#7f1d1d;}
+    :root{ --brand:#16a34a; --ink:#0f172a; --bg:#f8fafc; --bg-dark:#0f172a; }
+    html,body{margin:0;padding:0;font-family:"Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);transition:background .3s,color .3s}
+    .dark body{background:var(--bg-dark);color:#f8fafc}
+    .card{background:#fff;border-radius:1rem;box-shadow:0 10px 28px rgba(2,6,23,.08);padding:1.2rem}
+    .dark .card{background:#1e293b}
+    .btn{background:var(--brand);color:#fff;border-radius:.6rem;padding:.5rem 1rem;font-weight:700}
+    .btn-ghost{border:1px dashed #94a3b8;color:#334155;border-radius:.6rem;padding:.5rem 1rem;font-weight:700;background:transparent}
+    .dark .btn-ghost{color:#f1f5f9;border-color:#64748b}
+    .badge{padding:.2rem .6rem;border-radius:999px;font-weight:700;font-size:.8rem}
+    .b1{background:#fee2e2;color:#991b1b}.b2{background:#dbeafe;color:#1e40af}.b3{background:#d1fae5;color:#065f46}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:.4rem .6rem;border-bottom:1px solid #e2e8f0;text-align:left}
+    input,select{border:1px solid #e2e8f0;border-radius:.5rem;padding:.3rem .5rem;width:100%}
+    .dark input,.dark select{background:#334155;border-color:#475569;color:#f8fafc}
+    .num{text-align:right}
+    .month-btn{padding:.4rem .8rem;border-radius:.6rem;font-weight:700;cursor:pointer}
+    .month-active{background:var(--brand);color:#fff}
+    #toast{position:fixed;right:20px;bottom:30px;background:var(--brand);color:#fff;padding:.5rem .9rem;border-radius:.7rem;font-weight:700;opacity:0;transform:translateY(14px);transition:.4s;z-index:50}
+    #toast.show{opacity:1;transform:translateY(0)}
   </style>
 </head>
+
 <body>
-<div class="app">
-  <div class="topbar">
-    <div class="brand">
-      <img src="https://github.com/Sethjesus/Photo/blob/main/UDM%20New%20Logo.jpg?raw=true" alt="UDM Logo"/>
-      <div style="display:flex;flex-direction:column;line-height:1.1">
-        <b id="title">碳盤樂 ESG v5.4.4</b>
-        <small id="subtitle" style="opacity:.8">UDM｜邊玩邊學</small>
+<header class="max-w-7xl mx-auto px-4 py-5 flex items-center justify-between">
+  <h1 class="text-2xl font-extrabold flex items-center gap-2">
+    🌿 ESG 簡易碳盤查 v5.4
+    <span class="badge b1">S1</span><span class="badge b2">S2</span><span class="badge b3">S3</span>
+  </h1>
+  <button id="themeToggle" class="btn-ghost text-sm">🌞 / 🌙</button>
+</header>
+<div id="toast">已自動儲存！</div>
+
+<main class="max-w-7xl mx-auto px-4 pb-28 space-y-6">
+
+  <!-- 企業資訊 -->
+  <section class="card">
+    <h2 class="font-bold text-lg mb-3">🏢 企業資訊</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm mb-1">公司名稱</label>
+        <input id="companyName" type="text" value="景沛 ESG" placeholder="請輸入公司名稱">
+      </div>
+      <div>
+        <label class="block text-sm mb-1">年度（西元年）</label>
+        <input id="fiscalYear" type="number" value="2025" min="2000" max="2100" step="1">
+      </div>
+      <div class="flex items-end gap-2 flex-wrap">
+        <button id="saveMeta" class="btn">儲存公司/年度</button>
+        <button id="btnLoadGit" class="btn-ghost">從 Git 載入</button>
+        <button id="btnSaveGit" class="btn">存到 Git</button>
+        <span id="metaSaved" class="text-sm text-slate-500"></span>
       </div>
     </div>
-    <div class="controls">
-      <span class="chip">👤 <b id="player">Player</b></span>
-      <span class="chip">關卡：<b id="level">1</b>/10</span>
-      <span class="chip">難度：
-        <select id="difficulty" aria-label="選擇難度">
-          <option value="easy">簡單</option>
-          <option value="normal" selected>普通</option>
-          <option value="hard">困難</option>
-        </select>
-      </span>
-      <span class="chip" id="scoreChip">ESG 分數：<b id="score">0</b></span>
-      <span class="chip"><span id="treesLabel">已種樹：</span><b id="trees">0</b> 棵</span>
-      <button class="btn" id="mapBtn">🗺️ 地圖</button>
-      <button class="btn" id="treeBtn">🌳 圖鑑</button>
-      <button class="btn" id="questBtn">📅 任務</button>
-      <button class="btn" id="quizBtn">🧠 小知識</button>
-      <button class="btn" id="factsBtn">📚 知識庫</button>
-      <button class="btn" id="achBtn">🏆 成就</button>
-      <button class="btn" id="lbBtn">⭐ 排行</button>
-      <button class="btn" id="musicBtn">🎵 音樂</button>
-      <button class="btn" id="nameBtn">📝 名稱</button>
-      <button class="btn primary" id="startBtn">開始</button>
-      <button class="btn blue" id="pauseBtn">暫停</button>
-      <button class="btn" id="soundBtn" aria-pressed="false">🔈</button>
-      <!-- 📲 PWA 下載 -->
-      <button class="btn" id="installBtn">📲 下載</button>
-    </div>
-  </div>
+  </section>
 
-  <div class="arena">
-    <div class="board bg-forest" id="board">
-      <div class="back-illus" id="illus">🌲</div>
-      <div class="hud">
-        <span class="tag">🔥 <b id="combo">0x</b></span>
-        <span class="tag">⏱ <b id="time">60</b>s</span>
-        <span class="tag">🎯 目標：<b id="goal">120</b></span>
-      </div>
-      <div class="goalbar"><div class="fill" id="goalFill"></div></div>
-      <div class="hpbar" id="hpbar"><div class="hpfill" id="hpfill"></div></div>
-    </div>
-    <div class="hint" id="versionNote"></div>
-  </div>
-</div>
+  <!-- 月份 -->
+  <section class="card">
+    <h2 class="font-bold text-lg mb-3">📅 月份選擇</h2>
+    <div id="monthTabs" class="flex flex-wrap gap-2"></div>
+  </section>
 
-<!-- 取名 -->
-<div class="modal" id="nameModal"><div class="card">
-  <h3>取個名字吧</h3>
-  <div class="node"><input id="nameInput" placeholder="你的名字" style="width:100%"></div>
-  <div style="display:flex;gap:8px;justify-content:flex-end">
-    <button class="btn" id="resetName">重置名稱</button>
-    <button class="btn primary" id="saveName">儲存</button>
-  </div>
-</div></div>
-
-<!-- 地圖 -->
-<div class="modal" id="mapModal"><div class="card">
-  <h3>🗺️ 關卡地圖</h3>
-  <div class="grid" id="mapGrid"></div>
-  <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="resetProgress">重置進度</button><button class="btn" data-close="mapModal">關閉</button></div>
-</div></div>
-
-<!-- 圖鑑 -->
-<div class="modal" id="treeModal"><div class="card">
-  <h3>🌳 樹種圖鑑</h3>
-  <div class="grid" id="dexGrid"></div>
-  <div style="display:flex;gap:8px;justify-content:flex-end">
-    <button class="btn" id="resetDex">重置圖鑑</button>
-    <button class="btn" data-close="treeModal">關閉</button>
-  </div>
-</div></div>
-
-<!-- 任務中心（Pager 5 頁） -->
-<div class="modal" id="questModal">
-  <div class="card">
-    <h3>📅 任務中心</h3>
-
-    <div class="pager-wrap">
-      <div class="pager" id="questPager">
-        <div class="pager-track" id="questTrack">
-          <!-- 0：每日 -->
-          <section class="pager-page">
-            <div class="grid">
-              <div class="node">
-                <b>🎯 每日任務</b>
-                <ul id="dailyList" class="todo-list"></ul>
-              </div>
-            </div>
-          </section>
-          <!-- 1：每週 -->
-          <section class="pager-page">
-            <div class="grid">
-              <div class="node">
-                <b>📆 每週任務</b>
-                <ul id="weeklyList" class="todo-list"></ul>
-              </div>
-            </div>
-          </section>
-          <!-- 2：清單（S1/S2/S3） -->
-          <section class="pager-page">
-            <div class="grid">
-              <div class="node">
-                <b>📑 碳盤查任務流（S1 / S2 / S3）</b>
-                <table class="table" style="width:100%;border-collapse:separate;border-spacing:0 6px">
-                  <tbody id="ghgBody"></tbody>
-                </table>
-              </div>
-            </div>
-          </section>
-          <!-- 3：GHG / ISO 14064-1 對照表（表格） -->
-          <section class="pager-page">
-            <div class="grid">
-              <div class="node">
-                <b>🧾 GHG / ISO 14064-1 對照表</b>
-                <div class="node" style="overflow:auto">
-                  <table class="ghg-table">
-                    <thead>
-                      <tr><th>環保署規範範疇</th><th>GHG Protocol</th><th>ISO 14064-1:2018</th></tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td><b>盤查溫室氣體</b></td>
-                        <td>京都議定書涵蓋 CO₂、CH₄、N₂O、SF₆、HFCs、PFCs 等 6 類氣體；其他氣體另行揭露。</td>
-                        <td>常用清單含 CO₂、CH₄、N₂O、NF₃、SF₆、HFCs、PFCs 等。</td>
-                      </tr>
-                      <tr>
-                        <td><b>直接排放</b></td>
-                        <td>範疇 1：直接溫室氣體排放</td>
-                        <td>類別 1：直接溫室氣體排放與移除</td>
-                      </tr>
-                      <tr>
-                        <td><b>能源間接排放</b></td>
-                        <td>範疇 2：電力之間接溫室氣體排放</td>
-                        <td>類別 2：進口能源的間接溫室氣體排放</td>
-                      </tr>
-                      <tr>
-                        <td><b>其他間接排放</b></td>
-                        <td>範疇 3：其他間接排放（15 類）</td>
-                        <td>類別 3–6：運輸、產品使用、範圍外間接排放與其他來源間接排放</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </section><!-- 4：盤查定義與應用延伸 -->
-          <section class="pager-page">
-            <div class="grid">
-              <div class="node">
-                <b>📘 盤查定義與應用延伸</b>
-                <div class="node" style="overflow:auto;margin-top:8px">
-                  <b>🧭 組織邊界（Boundary Definition）</b>
-                  <table class="ghg-table">
-                    <thead><tr><th>項目</th><th>說明</th></tr></thead>
-                    <tbody>
-                      <tr><td>股權法 (Equity Share)</td><td>依企業在被投資單位之持股比例計算排放量。</td></tr>
-                      <tr><td>財務控制 (Financial Control)</td><td>企業具有財務決策權（預算/資本配置等）者，納入盤查邊界。</td></tr>
-                      <tr><td>營運控制 (Operational Control)</td><td>企業能主導日常營運與政策者，應納入盤查。</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div class="node" style="overflow:auto;margin-top:8px">
-                  <b>🧩 營運控制法應用</b>
-                  <table class="ghg-table">
-                    <thead><tr><th>分類</th><th>範例</th><th>是否納入盤查</th></tr></thead>
-                    <tbody>
-                      <tr><td>公司自有廠房與設備</td><td>自營生產線、辦公室</td><td>✅ 是</td></tr>
-                      <tr><td>委外加工廠</td><td>無日常管理權</td><td>❌ 否（可列入 S3）</td></tr>
-                      <tr><td>合資企業</td><td>持股但無營運控制權</td><td>➖ 依股權法按比例列入</td></tr>
-                      <tr><td>委外物流或租賃</td><td>由第三方運作</td><td>✅ 若由企業指揮運作則納入</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div class="node" style="overflow:auto;margin-top:8px">
-                  <b>🔄 碳盤查流程（Carbon Inventory Flow）</b>
-                  <table class="ghg-table">
-                    <thead><tr><th>步驟</th><th>說明</th></tr></thead>
-                    <tbody>
-                      <tr><td>1. 界定組織與營運邊界</td><td>確認盤查對象範圍（含子公司、工廠、辦公室）。</td></tr>
-                      <tr><td>2. 辨識排放源</td><td>盤點能源、燃料、設備、運輸、廢棄物等來源。</td></tr>
-                      <tr><td>3. 蒐集活動數據</td><td>燃料量、電表度數、里程、噸公里、重量等。</td></tr>
-                      <tr><td>4. 套用排放係數</td><td>選用政府或國際指南（IPCC、EPA、DEFRA、在地電力係數）。</td></tr>
-                      <tr><td>5. 計算排放量</td><td>活動數據 × 排放係數（必要時乘以 GWP）。</td></tr>
-                      <tr><td>6. 審查與查驗</td><td>內部或第三方審查資料來源、邊界與計算邏輯。</td></tr>
-                      <tr><td>7. 揭露與改善</td><td>年度報告揭露並設定減碳目標與行動。</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div class="node" style="margin-top:8px">
-                  <div class="node">
-                    📍 <a href="https://www.idipckeelung.org.tw/%E3%80%90%E8%A3%9C%E5%8A%A9%E8%B3%87%E8%A8%8A%E3%80%91%E5%9B%A0%E6%87%89%E4%B8%AD%E5%B0%8F%E4%BC%81%E6%A5%AD%E9%9C%80%E6%B1%82%EF%BC%8C%E7%94%B3%E8%AB%8B%E6%97%A5%E6%9C%9F%E6%8B%89%E9%95%B7%E8%87%B312/"
-                    target="_blank" rel="noopener"><b>👉 點我前往申請 16+4 碳盤查補助計畫</b></a>
-                  </div>
-                </div>
-                <div class="node" style="overflow:auto;margin-top:8px">
-                  <b>⚙️ 排放係數範例（示意）</b>
-                  <table class="ghg-table">
-                    <thead><tr><th>類別</th><th>單位</th><th>參考係數（kgCO₂e）</th><th>常見來源</th></tr></thead>
-                    <tbody>
-                      <tr><td>電力（台灣地區）</td><td>kWh</td><td>0.495</td><td>環保署/能源局公布之年度係數</td></tr>
-                      <tr><td>汽油</td><td>L</td><td>2.27</td><td>IPCC 2006</td></tr>
-                      <tr><td>柴油</td><td>L</td><td>2.68</td><td>IPCC 2006</td></tr>
-                      <tr><td>天然氣</td><td>Nm³</td><td>2.05</td><td>能源局因子</td></tr>
-                      <tr><td>員工通勤（小客車）</td><td>km</td><td>0.21</td><td>DEFRA 2023</td></tr>
-                      <tr><td>廢棄物掩埋</td><td>kg</td><td>0.45</td><td>EPA WARM</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
-      <div class="pager-nav">
-        <button class="pager-btn" id="questPrev">◀</button>
-        <span id="questDots" style="display:flex;gap:6px"></span>
-        <button class="pager-btn" id="questNext">▶</button>
+  <!-- 主表格 -->
+  <section class="card">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="font-bold text-lg">📋 活動數據輸入</h2>
+      <div class="flex gap-2">
+        <button id="btnAdd" class="btn-ghost">+ 新增列</button>
+        <button id="btnPreset" class="btn">載入預設 10 項</button>
       </div>
     </div>
 
-    <div style="text-align:right;margin-top:8px">
-      <button class="btn" data-close="questModal">關閉</button>
+    <div class="overflow-x-auto">
+      <table id="table" class="text-sm">
+        <thead class="bg-slate-100 dark:bg-slate-700">
+          <tr>
+            <th>項目</th><th>分類</th><th>範疇</th>
+            <th class="num">用量</th><th>單位</th>
+            <th class="num">排放係數</th><th>部門／據點</th>
+            <th class="num">排放量 (kgCO₂e)</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot class="bg-slate-50 dark:bg-slate-800 font-bold">
+          <tr>
+            <td>合計</td><td></td><td></td>
+            <td id="sumAct" class="num">—</td><td></td><td></td><td></td>
+            <td id="sumTotal" class="num">0</td><td></td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
-  </div>
-</div>
 
-<!-- 問答 -->
-<div class="modal" id="quizModal"><div class="card" style="position:relative">
-  <h3>🧠 小知識問答</h3>
+    <!-- 匯出 / 匯入 -->
+    <div class="mt-4 flex flex-wrap gap-3">
+      <button id="btnCalc" class="btn">重新計算</button>
+      <button id="btnExportXlsxMonth" class="btn-ghost">匯出本月 Excel（.xlsx）</button>
+      <button id="btnExportXlsxYear"  class="btn-ghost">匯出全年 Excel（多工作表）</button>
+      <label class="btn-ghost cursor-pointer">匯入 Excel
+        <input id="fileImportXlsx" type="file" class="hidden" accept=".xlsx,.xls">
+      </label>
+    </div>
+  </section>
 
-  <!-- 🔁 匯入模式切換（右上角） -->
-  <div style="position:absolute; right:12px; top:12px; display:flex; gap:8px; align-items:center">
-    <span style="font-size:12px;opacity:.7">CSV 匯入模式</span>
-    <button class="mode-pill merge" id="importModeBtn" title="點擊切換：合併 / 覆蓋">合併</button>
-  </div>
+  <!-- 圖表 -->
+  <section class="card">
+    <div class="grid md:grid-cols-3 gap-6">
+      <div><h3 class="font-bold mb-2">各項目排放量（kgCO₂e）</h3><canvas id="chartItems"></canvas></div>
+      <div><h3 class="font-bold mb-2">S1/S2/S3 組成比例</h3><canvas id="chartScopes"></canvas></div>
+      <div><h3 class="font-bold mb-2">部門／據點彙總</h3><canvas id="chartDept"></canvas></div>
+    </div>
+  </section>
 
-  <div class="tabbar" id="qTabs"></div>
-  <div class="node" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-    <input type="file" id="csvQ" accept=".csv"><button class="btn" id="importCsv">匯入 CSV</button>
-    <button class="btn" id="exportCsv">匯出 CSV</button>
-    <span style="opacity:.7;font-size:12px">格式：cat,q,a1|a2|a3|a4,correct_index,why</span>
-  </div>
-  <div id="quizStats" class="node" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-    <div>🎯 總題數：<b id="statTotal">0</b></div>
-    <div>✅ 答對：<b id="statRight">0</b></div>
-    <div>❌ 答錯：<b id="statWrong">0</b></div>
-    <div>📊 正確率：<b id="statAcc">0%</b></div>
-  </div>
-  <div id="quizBox"></div>
-  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-    <button class="btn" id="nextQ">下一題</button>
-    <button class="btn" data-close="quizModal">關閉</button>
-  </div>
-</div></div>
-
-<!-- 知識庫 -->
-<div class="modal" id="factsModal"><div class="card">
-  <h3>📚 知識庫</h3>
-  <ul id="factsList" style="line-height:1.8"></ul>
-  <div style="text-align:right"><button class="btn" data-close="factsModal">關閉</button></div>
-</div></div>
-
-<!-- 成就 -->
-<div class="modal" id="achModal"><div class="card">
-  <h3>🏆 成就</h3>
-  <div class="grid" id="achGrid"></div>
-  <div style="text-align:right"><button class="btn" data-close="achModal">關閉</button></div>
-</div></div>
-
-<!-- 排行 -->
-<div class="modal" id="lbModal"><div class="card">
-  <h3>⭐ 排行榜</h3>
-  <table class="table" style="width:100%;border-collapse:separate;border-spacing:0 6px"><thead><tr><th>#</th><th>玩家</th><th>關卡</th><th>分數</th><th>樹</th><th>日期</th></tr></thead><tbody id="lbBody"></tbody></table>
-  <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px">
-    <input id="firebaseUrl" placeholder="Firebase REST URL (可選)" style="flex:1;min-width:260px">
-    <input id="sheetsUrl" placeholder="Google Apps Script 部署網址 (可選)" style="flex:1;min-width:260px">
-    <button class="btn" id="pushOnline">上傳</button>
-    <button class="btn" id="pullOnline">更新</button>
-    <button class="btn" id="clearLB">清空排行</button>
-    <button class="btn" data-close="lbModal">關閉</button>
-  </div>
-</div></div>
-
-<!-- 音樂 -->
-<div class="modal" id="musicModal"><div class="card">
-  <h3>🎵 音樂與音量</h3>
-  <div class="node" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-    <div>
-      <b>曲目</b>
-      <select id="musicSel" style="width:100%;margin-top:6px">
-        <option value="auto">自動輪播（隨關卡）</option>
-        <option value="forest">森林曲</option>
-        <option value="city">城市曲</option>
-        <option value="ocean">海洋曲</option>
-        <option value="boss">Boss 曲</option>
-        <option value="rock">🎸 Rock 模式</option>
-        <option value="none">無音樂</option>
+  <!-- PDF -->
+  <section class="card">
+    <div class="flex flex-wrap gap-3 items-center">
+      <label class="font-semibold">📄 選擇年份：</label>
+      <select id="pdfYear" class="border rounded-md px-2 py-1">
+        <option>2024</option><option selected>2025</option><option>2026</option>
       </select>
+      <button id="exportPDF" class="btn">匯出年度報表 PDF</button>
     </div>
-    <div>
-      <b>音量</b>
-      <input id="vol" type="range" min="0" max="100" value="60"/>
-      <div style="opacity:.75;font-size:12px">滑動調整音量</div>
-    </div>
-  </div>
-  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-    <button class="btn" id="musicPreview">試聽</button>
-    <button class="btn primary" id="musicSave">套用</button>
-    <button class="btn" data-close="musicModal">關閉</button>
-  </div>
-</div></div>
+  </section>
 
-<script>
-/* ===========================
-   🌈 右上角浮動 Toast 系統
-   =========================== */
-(function initToastStyles(){
-  if (document.getElementById('toastStyles')) return;
-  const css = `
-  #toastBox{
-    position:fixed; right:20px; top:20px; z-index:9999;
-    display:flex; flex-direction:column; align-items:flex-end; gap:10px; pointer-events:none;
-  }
-  .toast-note{
-    pointer-events:auto; max-width:360px; color:#fff; background:rgba(15,23,42,.92);
-    border-radius:14px; padding:10px 14px 12px 12px; box-shadow:0 8px 22px rgba(0,0,0,.28);
-    display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:start;
-    opacity:0; transform:translateX(20px);
-    animation:toastIn .28s ease forwards;
-  }
-  .toast-icon{ font-size:18px; line-height:1; margin-top:2px; }
-  .toast-body{ font-size:14px; line-height:1.45; }
-  .toast-close{ background:transparent; border:none; color:#e2e8f0; font-size:16px; opacity:.8; cursor:pointer; }
-  .toast-close:hover{ opacity:1; }
-  .toast-bar{
-    grid-column:1 / span 3; height:4px; border-radius:999px; overflow:hidden;
-    background:rgba(255,255,255,.08); margin-top:6px;
-  }
-  .toast-bar > i{
-    display:block; height:100%; width:100%;
-    transform-origin:left center; animation:toastBar linear forwards;
-  }
-  /* 類型顏色 */
-  .toast-success{ border:1px solid rgba(34,197,94,.45); }
-  .toast-success .toast-bar > i{ background:linear-gradient(90deg,#86efac,#22c55e); }
-  .toast-info{ border:1px solid rgba(59,130,246,.45); }
-  .toast-info .toast-bar > i{ background:linear-gradient(90deg,#93c5fd,#3b82f6); }
-  .toast-warn{ border:1px solid rgba(245,158,11,.45); }
-  .toast-warn .toast-bar > i{ background:linear-gradient(90deg,#fcd34d,#f59e0b); }
-  .toast-error{ border:1px solid rgba(239,68,68,.45); }
-  .toast-error .toast-bar > i{ background:linear-gradient(90deg,#fca5a5,#ef4444); }
-  @keyframes toastIn{ from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
-  @keyframes toastOut{ to{opacity:0;transform:translateX(20px)} }
-  @keyframes toastBar{ from{transform:scaleX(1)} to{transform:scaleX(0)} }
-  `;
-  const el = document.createElement('style');
-  el.id = 'toastStyles';
-  el.textContent = css;
-  document.head.appendChild(el);
-})();
+  <!-- datalist：新增自選項目用 -->
+  <datalist id="itemList"></datalist>
 
-function toast(msg, opts){
-  if (typeof opts === 'number') opts = { duration: opts };
-  opts = Object.assign({ type:'info', duration:3000, showProgress:true, icon:null, html:true }, opts||{});
-  const iconMap = { success:'✅', info:'ℹ️', warn:'⚠️', error:'❌' };
-  const icon = opts.icon != null ? opts.icon : (iconMap[opts.type] || '🔔');
-  let box = document.getElementById('toastBox');
-  if (!box){ box = document.createElement('div'); box.id='toastBox'; document.body.appendChild(box); }
-  const card = document.createElement('div');
-  card.className = `toast-note toast-${opts.type}`;
-  const iconEl = `<div class="toast-icon">${icon}</div>`;
-  const body = opts.html ? String(msg) : String(msg).replace(/[&<>"]/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
-  const bodyEl = `<div class="toast-body">${body}</div>`;
-  const closeEl = `<button class="toast-close" aria-label="close">✖</button>`;
-  card.innerHTML = iconEl + bodyEl + closeEl + (opts.showProgress ? `<div class="toast-bar"><i style="animation-duration:${opts.duration}ms"></i></div>` : '');
-  const onClose = () => { card.style.animation='toastOut .25s ease forwards'; setTimeout(()=>card.remove(),260); };
-  card.querySelector('.toast-close').addEventListener('click', onClose);
-  box.appendChild(card);
-  const timer = setTimeout(onClose, opts.duration);
-  card.addEventListener('mouseenter', ()=> clearTimeout(timer));
-}
-const toastSuccess = (m,ms=2400)=> toast(m,{type:'success',duration:ms});
-const toastInfo    = (m,ms=2600)=> toast(m,{type:'info',duration:ms});
-const toastWarn    = (m,ms=3200)=> toast(m,{type:'warn',duration:ms});
-const toastError   = (m,ms=3600)=> toast(m,{type:'error',duration:ms});
-</script>
+  <!-- JS 主程式 -->
+  <script>
+    // ===== 全域狀態 =====
+    const tbody = document.getElementById('tbody');
+    const sumAct = document.getElementById('sumAct');
+    const sumTotal = document.getElementById('sumTotal');
+    const toast = document.getElementById('toast');
+    const themeToggle = document.getElementById('themeToggle');
+    const LS_THEME = 'carbonTheme';
+    const META_KEY = 'carbonMeta';
+    let currentMonth = new Date().getMonth() + 1;
+    let store = JSON.parse(localStorage.getItem('carbonStore') || '{}');
+    let charts = {};
 
-<script>
-(function(){
-  const $=id=>document.getElementById(id);
-  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-  function centerToast(msg){ toast(msg,{type:'info'}); } // 相容舊呼叫
-
-  // 玩家
-  function loadName(){ return localStorage.getItem('esg.player')||'Player'; }
-  function saveName(v){ localStorage.setItem('esg.player', v); }
-  let playerName=loadName(); $('player').textContent=playerName;
-
-  // 難度
-  const DIFF={ easy:{goalMul:.85,timePlus:10,spawnMul:1.15}, normal:{goalMul:1,timePlus:0,spawnMul:1}, hard:{goalMul:1.25,timePlus:-5,spawnMul:.85} };
-  let diff=localStorage.getItem('esg.diff')||'normal'; $('difficulty').value=diff;
-  $('difficulty').addEventListener('change',()=>{ diff=$('difficulty').value; localStorage.setItem('esg.diff',diff); toastInfo('難度變更'); if(running){ startLevel(LV); } });
-
-  // 聲音與音樂
-  let actx=null; try{actx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){actx=null}
-  ;['pointerdown','keydown','touchstart'].forEach(ev=>addEventListener(ev,()=>{ if(actx&&actx.state==='suspended'){try{actx.resume()}catch(e){}} },{passive:true}));
-  let soundOn=false; function blip(f=720,d=.12){ if(!soundOn||!actx) return; const o=actx.createOscillator(), g=actx.createGain(); o.type='triangle'; o.frequency.value=f; g.gain.value=.0001; o.connect(g).connect(actx.destination); o.start(); const t=actx.currentTime; g.gain.exponentialRampToValueAtTime(.14,t+.02); g.gain.exponentialRampToValueAtTime(.00001,t+d); o.stop(t+d+.02) }
-  const music={
-    forest:{tempo:108,type:'triangle',vol:.2,steps:[[440,660],[0],[523],[0],[392,784],[0],[523],[0]]},
-    city:{tempo:120,type:'sawtooth',vol:.2,steps:[[330],[0],[392],[0],[494],[0],[392],[0]]},
-    ocean:{tempo:96,type:'sine',vol:.18,steps:[[294],[0],[330],[0],[392],[0],[330],[0]]},
-    boss:{tempo:136,type:'square',vol:.25,steps:[[196,392],[0],[220,440],[0],[247,494],[0],[220,440],[0]]},
-    rock:{tempo:132,type:'square',vol:.28,steps:[[329.63,659.25],[0],[392],[0],[329.63,392],[0],[440],[0]]}
-  };
-  let musicMode=localStorage.getItem('esg.music')||'auto';
-  let vol=(+localStorage.getItem('esg.vol')||60)/100;
-  let musicBus=actx?actx.createGain():null; if(musicBus&&actx){ musicBus.gain.value=vol; musicBus.connect(actx.destination); }
-  let seqTimer=null, seqBeat=.5, seqStep=0;
-  function fadeTo(target=vol,secs=.5){ if(!actx||!musicBus) return; const now=actx.currentTime; try{musicBus.gain.cancelScheduledValues(now)}catch(e){} musicBus.gain.setValueAtTime(musicBus.gain.value,now); musicBus.gain.linearRampToValueAtTime(Math.max(0,Math.min(1,target)), now+secs); }
-  function stopSeq(){ if(seqTimer){clearInterval(seqTimer);seqTimer=null} fadeTo(0,.3) }
-  function playDrums(time,beatLen){
-    if(!actx||!musicBus) return;
-    const kick = actx.createOscillator(); const kg = actx.createGain();
-    kick.type='sine'; kick.frequency.setValueAtTime(120, time); kick.frequency.exponentialRampToValueAtTime(50, time+0.12);
-    kg.gain.value=0.0001; kg.gain.exponentialRampToValueAtTime(0.2, time+0.005); kg.gain.exponentialRampToValueAtTime(0.0001, time+0.18);
-    kick.connect(kg).connect(musicBus); kick.start(time); kick.stop(time+0.2);
-    const sn = actx.createOscillator(); const sg = actx.createGain();
-    sn.type='triangle'; sn.frequency.setValueAtTime(220, time+beatLen*0.5); sn.frequency.exponentialRampToValueAtTime(180, time+beatLen*0.5+0.05);
-    sg.gain.value=0.0001; sg.gain.exponentialRampToValueAtTime(0.08, time+beatLen*0.5+0.005); sg.gain.exponentialRampToValueAtTime(0.0001, time+beatLen*0.5+0.12);
-    sn.connect(sg).connect(musicBus); sn.start(time+beatLen*0.5); sn.stop(time+beatLen*0.65);
-  }
-  function playTrack(kind){
-    if(!actx||!musicBus) return;
-    if(kind==='none'){stopSeq();return}
-    const p=music[kind]||music.forest;
-    stopSeq();
-    seqBeat=60/(p.tempo||110);
-    seqStep=0;
-    seqTimer=setInterval(()=>{
-      const t=actx.currentTime;
-      const notes=p.steps[seqStep%p.steps.length];
-      if(kind==='rock'){ playDrums(t, seqBeat); }
-      for(const n of notes){
-        if(n){
-          const o=actx.createOscillator(), g=actx.createGain();
-          o.type=p.type; o.frequency.value=n;
-          g.gain.value=.00001;
-          o.connect(g).connect(musicBus);
-          o.start();
-          g.gain.exponentialRampToValueAtTime(p.vol,t+.01);
-          g.gain.exponentialRampToValueAtTime(.00001,t+seqBeat*.9);
-          o.stop(t+seqBeat);
-        }
-      }
-      seqStep++;
-    }, seqBeat*1000);
-    fadeTo(vol,.4);
-  }
-  function applyMusic(bg){
-    if(musicMode==='none') return stopSeq();
-    if(musicMode==='auto'){
-      playTrack(bg==='city'?'city':bg==='ocean'?'ocean':'forest');
-    } else {
-      playTrack(musicMode);
+    // ===== 企業資訊（公司/年度） =====
+    const companyNameEl = document.getElementById('companyName');
+    const fiscalYearEl  = document.getElementById('fiscalYear');
+    const metaSavedEl   = document.getElementById('metaSaved');
+    function loadMeta(){
+      const meta = JSON.parse(localStorage.getItem(META_KEY) || '{}');
+      if(meta.company) companyNameEl.value = meta.company;
+      if(meta.year)    fiscalYearEl.value  = meta.year;
     }
-  }
-
-  // 關卡配置
-  const LEVELS=[
-    {goal:120,time:60,spawn:700,quiz:1,bg:'forest',illus:'🌲',boss:false},
-    {goal:200,time:55,spawn:650,quiz:1,bg:'city',illus:'🏙️',boss:false},
-    {goal:280,time:52,spawn:620,quiz:2,bg:'ocean',illus:'🌊',boss:true},
-    {goal:360,time:50,spawn:600,quiz:2,bg:'forest',illus:'🦌',boss:false},
-    {goal:460,time:48,spawn:560,quiz:2,bg:'city',illus:'🚋',boss:true},
-    {goal:560,time:46,spawn:520,quiz:3,bg:'ocean',illus:'🐟',boss:false},
-    {goal:680,time:44,spawn:500,quiz:3,bg:'forest',illus:'⛰️',boss:false},
-    {goal:820,time:42,spawn:480,quiz:3,bg:'city',illus:'🌉',boss:true},
-    {goal:960,time:40,spawn:460,quiz:4,bg:'ocean',illus:'🪸',boss:false},
-    {goal:1120,time:38,spawn:440,quiz:4,bg:'forest',illus:'🦅',boss:true}
-  ];
-  let LV=0; function setBg(kind){ board.classList.remove('bg-forest','bg-city','bg-ocean'); board.classList.add('bg-'+(kind||'forest')); $('illus').textContent=(LEVELS[LV]&&LEVELS[LV].illus)||'🌲'; }
-  function renderMap(){ const g=$('mapGrid'); g.innerHTML=''; const best=+(localStorage.getItem('esg.bestLV')||1); LEVELS.forEach((cfg,i)=>{ const lock=i+1>best; const n=document.createElement('div'); n.className='node fade-enter'; n.innerHTML='<b>關卡 '+(i+1)+'</b> <span style="opacity:.75">'+cfg.bg+'｜目標'+cfg.goal+'｜'+cfg.time+'s '+(cfg.boss?'｜Boss':'')+'</span><div style="margin-top:6px;text-align:right"><button class="btn" '+(lock?'disabled':'')+' data-lv="'+i+'">開始</button></div>'; g.appendChild(n); }); g.querySelectorAll('button[data-lv]').forEach(b=>b.addEventListener('click',function(){ $('mapModal').classList.remove('show'); startLevel(+this.dataset.lv); })); }
-  function saveBestLV(lv){ const best=+(localStorage.getItem('esg.bestLV')||1); if(lv>best){ localStorage.setItem('esg.bestLV', lv); }}
-
-  const board=$('board'), fill=$('goalFill'), hpbar=$('hpbar'), hpfill=$('hpfill');
-  let score=0, combo=0, timeLeft=60, running=false, planted=0, spawnTimer=null, tickTimer=null, bossEl=null, bossHp=0, drainAura=null;
-  const EMOJIS=['🍀','🌿','🌳','💧','⚡','🌎'];
-
-  function startLevel(i){ LV=i; const cfg=LEVELS[LV]||LEVELS[0]; const d=DIFF[diff]||DIFF.normal;
-    const goal=Math.round(cfg.goal*d.goalMul), time=clamp(cfg.time+d.timePlus,20,999), spawn=Math.round(cfg.spawn*d.spawnMul);
-    setBg(cfg.bg); applyMusic(cfg.bg); score=0; combo=0; timeLeft=time; $('level').textContent=(LV+1); $('goal').textContent=goal; $('time').textContent=timeLeft; $('score').textContent=0; $('trees').textContent=planted; fill.style.width='0%'; hpbar.style.display='none';
-    if(spawnTimer) clearInterval(spawnTimer); if(tickTimer) clearInterval(tickTimer);
-    running=true; spawnTimer=setInterval(spawnToken, spawn); tickTimer=setInterval(()=>{ if(!running) return; timeLeft--; $('time').textContent=timeLeft; if(timeLeft<=0){ gameOver(false); } },1000);
-  }
-  function spawnToken(){ if(!running) return; const t=document.createElement('div'); t.className='token'; const w=board.clientWidth, h=board.clientHeight; t.style.left=(Math.random()*(w-96)+6)+'px'; t.style.top=(Math.random()*(h-160)+100)+'px'; t.innerHTML='<div class="bubble"><div class="emoji">'+EMOJIS[Math.floor(Math.random()*EMOJIS.length)]+'</div></div>'; t.addEventListener('click',function(){hitToken(t)}); board.appendChild(t); setTimeout(()=>{ t.remove(); }, 3200); }
-  function currentGoal(){ return parseInt($('goal').textContent,10)||0; }
-  function hitToken(t){ if(!running) return; blip(720,.08); score+=10; combo=Math.min(99,combo+1); $('score').textContent=score; $('combo').textContent=combo+'x'; fill.style.width=Math.min(100,(score/currentGoal())*100)+'%'; t.remove(); if(score>=currentGoal()){ const cfg=LEVELS[LV]; if(cfg.boss && !bossEl){ spawnBoss(); } else { openQuiz(cfg.quiz); } } }
-
-  // =====================
-  // 🌳 圖鑑 + 存檔
-  // =====================
-  const TREEDEX_BASE=[
-    {name:'台灣杉',desc:'固碳佳，針葉樹',stage:0,unlocked:true},
-    {name:'烏心石',desc:'樟科，耐陰耐風',stage:0,unlocked:false},
-    {name:'楓香',desc:'秋季紅葉',stage:0,unlocked:false},
-    {name:'榕樹',desc:'常綠行道樹',stage:0,unlocked:false},
-    {name:'相思樹',desc:'固氮造林樹種',stage:0,unlocked:false},
-    {name:'山毛櫸',desc:'高海拔闊葉',stage:0,unlocked:false}
-  ];
-  function baseDex(){ return JSON.parse(JSON.stringify(TREEDEX_BASE)); }
-  function loadDex(){
-    try{
-      const raw = localStorage.getItem('esg.dex');
-      if(!raw) return baseDex();
-      const saved = JSON.parse(raw);
-      const map = new Map(saved.map(it=>[it.name,it]));
-      return baseDex().map(it=>{ const s=map.get(it.name); return s? {...it, ...s} : it; });
-    }catch(e){ return baseDex(); }
-  }
-  function saveDex(dex){ localStorage.setItem('esg.dex', JSON.stringify(dex)); }
-  let DEX = loadDex();
-  const stageIcon=['🌱','🌿','🌳'];
-  function plantTree(icon){ planted++; $('trees').textContent=planted; const el=document.createElement('div'); el.className='tree'; el.style.setProperty('--x',(Math.random()*(board.clientWidth-80))+'px'); el.textContent=icon||stageIcon[Math.floor(Math.random()*3)]; board.appendChild(el); setTimeout(()=>el.remove(),4800); }
-  function renderDex(){ const g=$('dexGrid'); g.innerHTML=''; DEX.forEach(t=>{ const n=document.createElement('div'); n.className='node'; const badge=t.unlocked?'<span style="font-size:12px;background:#dcfce7;padding:2px 8px;border-radius:999px">已解鎖</span>':'<span style="font-size:12px;background:#e5e7eb;padding:2px 8px;border-radius:999px">未解鎖</span>'; const stage=stageIcon[Math.max(0,Math.min(2, t.stage||0))]; n.innerHTML='<b>'+t.name+'</b> '+badge+' <span style="font-size:12px;background:#e2e8f0;padding:2px 8px;border-radius:999px">階段：'+stage+'</span><p style="margin:6px 0 0;opacity:.9">'+t.desc+'</p>'+(t.unlocked?'<button class="btn" data-plant="1" data-name="'+t.name+'">種下</button>':''); g.appendChild(n); }); g.querySelectorAll('button[data-plant]').forEach(b=>b.addEventListener('click',()=>{ plantTree(); const name=b.getAttribute('data-name'); const t=DEX.find(x=>x.name===name); if(t){ t.stage=Math.min(2,(t.stage||0)+1); saveDex(DEX); renderDex(); } })); }
-
-  $('resetDex').addEventListener('click',()=>{
-    if(confirm('確定要重置圖鑑嗎？（清除 esg.dex，恢復初始狀態）')){
-      localStorage.removeItem('esg.dex');
-      DEX = loadDex();
-      renderDex();
-      toastInfo('圖鑑已重置');
+    function saveMeta(){
+      const meta = {
+        company: (companyNameEl.value||'').trim() || '公司名稱',
+        year: parseInt(fiscalYearEl.value) || new Date().getFullYear()
+      };
+      localStorage.setItem(META_KEY, JSON.stringify(meta));
+      metaSavedEl.textContent = '已儲存';
+      setTimeout(()=>metaSavedEl.textContent='', 1500);
     }
-  });
+    document.getElementById('saveMeta').onclick = saveMeta;
+    loadMeta();
 
-  // 自然解鎖條件
-  function totalCorrect(){ return stats.right||0; }
-  function totalTrees(){ return planted||0; }
-  function bestLV(){ return +(localStorage.getItem('esg.bestLV')||1); }
-  function highScore(){
-    try{ const arr=JSON.parse(localStorage.getItem('esg.lb.v54')||'[]'); return arr.reduce((m,r)=>Math.max(m,r.score||0),0); }
-    catch(e){return 0;}
-  }
-  function checkUnlocks(ctx={clear:false,boss:false}){
-    let changed=false;
-    const ensure=(name)=>{ const t=DEX.find(x=>x.name===name); if(t && !t.unlocked){ t.unlocked=true; changed=true; }}
-    if(bestLV()>=2) ensure('烏心石');
-    if(totalCorrect()>=5) ensure('楓香');
-    if(score>=300 || highScore()>=600) ensure('榕樹');
-    if(ctx.boss===true) ensure('相思樹');
-    if(totalTrees()>=30) ensure('山毛櫸');
-    if(changed){ saveDex(DEX); renderDex(); toastSuccess('🌳 新樹種已解鎖！'); }
-  }
+    // ===== 固定範疇與預設列 =====
+    const SCOPE_FIX = {
+      '電力':2, '水':2, '交通':3, '車用汽油':1,
+      '柴油':1, '天然氣':1, '團體膳食':3, '洗潔精':3, '衛生紙':3, '廢(污)水處理':3
+    };
+    const PRESET = [
+      {name:'電力', category:'能源', scope:2, unit:'kWh', factor:0.495, dept:'總部'},
+      {name:'水', category:'資源', scope:2, unit:'m³', factor:0.156, dept:'總部'},
+      {name:'交通', category:'通勤', scope:3, unit:'km', factor:0.251, dept:'業務部'},
+      {name:'車用汽油', category:'燃料', scope:1, unit:'L', factor:2.92, dept:'物流'},
+      {name:'柴油', category:'燃料', scope:1, unit:'L', factor:3.32, dept:'物流'},
+      {name:'天然氣', category:'燃料', scope:1, unit:'m³', factor:2.63, dept:'餐飲部'},
+      {name:'團體膳食', category:'餐飲', scope:3, unit:'份', factor:1.29, dept:'餐飲部'},
+      {name:'洗潔精', category:'用品', scope:3, unit:'kg', factor:1.32, dept:'清潔'},
+      {name:'衛生紙', category:'用品', scope:3, unit:'kg', factor:0.402, dept:'行政'},
+      {name:'廢(污)水處理', category:'廢棄物', scope:3, unit:'m³', factor:0.533, dept:'清潔'}
+    ];
 
-  // Boss
-  function spawnBoss(){ bossHp=120; hpbar.style.display='block'; hpfill.style.width='100%'; bossEl=document.createElement('div'); bossEl.className='boss'; board.appendChild(bossEl); playTrack('boss');
-    const tap=function(){ bossHp-=6; blip(180,.07); hpfill.style.width=Math.max(0,bossHp)/120*100+'%'; if(bossHp<=0){ cleanup(true); } };
-    board.addEventListener('mousedown',tap); board.addEventListener('touchstart',tap,{passive:true});
-    const bossTimer=setInterval(()=>{ if(!bossEl) return; const r=Math.random(); if(r<0.33){ skillShockwave(); } else if(r<0.66){ skillStun(); } else { Math.random()<0.5? skillMissile(): skillDrain(); } }, 2800);
-    setTimeout(()=>{ if(bossEl){ cleanup(false,true); } }, 14000);
-
-    function cleanup(kill=false,escape=false){ board.removeEventListener('mousedown',tap); board.removeEventListener('touchstart',tap); clearInterval(bossTimer); if(drainAura&&drainAura.parentNode) drainAura.parentNode.removeChild(drainAura); drainAura=null; if (bossEl) { bossEl.remove(); } bossEl=null; hpbar.style.display='none'; applyMusic(LEVELS[LV].bg); if(kill){ toastSuccess('Boss 擊敗！'); checkUnlocks({boss:true}); openQuiz(LEVELS[LV].quiz); } else if(escape){ timeLeft=Math.max(0,timeLeft-10); toastWarn('Boss 逃走！-10s'); } }
-    function skillShockwave(){ const sw=document.createElement('div'); sw.className='shockwave'; board.appendChild(sw); setTimeout(()=>sw.remove(),1200); const lose=30; score=Math.max(0,score-lose); $('score').textContent=score; toastWarn('💥 衝擊波 -'+lose+' 分'); }
-    function skillStun(){ const old=running; running=false; bossEl.classList.add('aura'); toastInfo('⛔ 暈眩 1.5s'); setTimeout(()=>{ running=old; bossEl.classList.remove('aura'); },1500); }
-    function skillMissile(){ let m=document.createElement('div'); m.className='missile'; const w=board.clientWidth, h=board.clientHeight; let x=w/2, y=h*0.56; m.style.left=x+'px'; m.style.top=y+'px'; board.appendChild(m); let t0=Date.now(); let timer=setInterval(()=>{ const target=document.querySelector('.token'); if(!target){ m.remove(); clearInterval(timer); return; } const rectT=target.getBoundingClientRect(); const rectB=board.getBoundingClientRect(); const tx=rectT.left-rectB.left+rectT.width/2; const ty=rectT.top-rectB.top+rectB.height/2; x+= (tx-x)*0.12; y+= (ty-y)*0.12; m.style.left=x+'px'; m.style.top=y+'px'; if(Math.hypot(tx-x,ty-y)<18){ const lose=20; score=Math.max(0,score-lose); $('score').textContent=score; toastWarn('🎯 追蹤飛彈 -'+lose+' 分'); try{target.remove();}catch(e){} clearInterval(timer); m.remove(); } if(Date.now()-t0>3500){ clearInterval(timer); m.remove(); } }, 60); }
-    function skillDrain(){ if(drainAura&&drainAura.parentNode) drainAura.parentNode.removeChild(drainAura); drainAura=document.createElement('div'); drainAura.className='drain'; board.appendChild(drainAura); let t=0; const iv=setInterval(()=>{ if(!drainAura||!bossEl){ clearInterval(iv); return; } t++; if(t%4===0){ const lose=5; score=Math.max(0,score-lose); $('score').textContent=score; } },160); setTimeout(()=>{ if(drainAura&&drainAura.parentNode){ drainAura.remove(); drainAura=null; clearInterval(iv); } }, 2200); }
-  }
-
-  function gameOver(clear){ running=false; clearInterval(spawnTimer); clearInterval(tickTimer); if(clear){ celebrate(); toastSuccess('🎉 破關！'); saveLB(); saveBestLV(LV+2); plantTree('🌱'); checkUnlocks({clear:true}); setTimeout(()=>nextLevel(),900); } else { toastInfo('時間到，下次再來！'); saveLB(); } }
-  function nextLevel(){ if(LV+1>=LEVELS.length){ toastSuccess('🏁 全通關！'); return; } startLevel(LV+1); }
-  function celebrate(){ for(let i=0;i<80;i++){ const c=document.createElement('div'); c.className='confetti'; c.style.left=(Math.random()*100)+'%'; c.style.background='hsl('+(Math.random()*360)+',90%,60%)'; c.style.animationDuration=(1.2+Math.random()*1.4)+'s'; document.body.appendChild(c); setTimeout(()=>c.remove(),2200);} }
-
-  // 成就（示意）
-  const ACH=[{id:'combo30',name:'連擊王',desc:'連擊 ≥ 30',check:()=>combo>=30},{id:'planter',name:'種樹達人',desc:'累計種樹 ≥ 50',check:()=>planted>=50}];
-  function renderAch(){ const g=$('achGrid'); g.innerHTML=''; let owned={}; try{owned=JSON.parse(localStorage.getItem('esg.ach')||'{}')}catch(e){} ACH.forEach(a=>{ const n=document.createElement('div'); n.className='node'; const ok=owned[a.id]; n.innerHTML='<b>'+(ok?'✅':'')+' '+a.name+'</b><p style="margin:6px 0 0;opacity:.9">'+a.desc+'</p>'; g.appendChild(n); }); }
-
-  // ===== 問答（QUIZ） =====
-  const CAT=['Energy','Water','Air','Renewable','Carbon']; let weight={Energy:3,Water:2,Air:2,Renewable:3,Carbon:3};
-  function buildTabs(){ const box=$('qTabs'); box.innerHTML=''; CAT.forEach(c=>{ const b=document.createElement('button'); b.className='btn'; b.textContent=c; b.dataset.c=c; b.addEventListener('click',()=>{ weight[c]=Math.min(5,(weight[c]||1)+1); updateTabs(); toastInfo(c+' 權重 +1'); }); box.appendChild(b); }); updateTabs(); }
-  function updateTabs(){ Array.prototype.forEach.call(document.querySelectorAll('#qTabs .btn'),function(b){ const c=b.dataset.c; const on=(weight[c]||1)>=4; if(on){ b.classList.add('primary'); }else{ b.classList.remove('primary'); } }); updateStats(); }
-
-  // 你的題庫（原本 ans 欄位），系統會自動相容
-  let QUIZ=[
-    {cat:'能源類',q:'冷氣開幾度最剛好又省電？',a:['18°C','22°C','24–26°C','30°C'],ans:2},
-    {cat:'能源類',q:'白天開冷氣時，要怎麼做最省電？',a:['拉上窗簾','開窗通風','開門散熱','調最強風'],ans:0},
-    {cat:'能源類',q:'出門前要記得做什麼最省電？',a:['關燈','留著電視聲','開冷氣讓房間不熱','充手機整天'],ans:0},
-    {cat:'能源類',q:'換成 LED 燈泡的好處是什麼？',a:['比較亮','比較省電','比較貴','比較大顆'],ans:1},
-    {cat:'能源類',q:'冰箱要怎麼用才不浪費電？',a:['少開冰箱門','門打開散熱','常開關','放熱湯進去'],ans:0},
-    {cat:'能源類',q:'看完電視要怎麼做最省電？',a:['換頻道','讓紅燈亮著','靜音就好','關電源或拔插頭'],ans:3},
-    {cat:'能源類',q:'下列哪一種是再生能源？',a:['石油','天然氣','太陽能','煤炭'],ans:2},
-    {cat:'省水類',q:'刷牙時要怎麼做才不浪費水？',a:['水一直開著','用杯子漱口','邊刷邊玩水','沖超久'],ans:1},
-    {cat:'省水類',q:'洗衣機的水可以怎麼再利用？',a:['澆花或拖地','倒掉','洗車','沒有辦法'],ans:2},
-    {cat:'省水類',q:'哪一個行為最浪費水？',a:['洗碗用臉盆接水','澆花用回收水','沖馬桶漏水不修','洗澡快洗'],ans:2},
-    {cat:'省水類',q:'哪一個用水習慣最好？',a:['沖馬桶漏水不理','看到漏水趕快修','洗澡時間越長越好','邊玩邊開水'],ans:1},
-    {cat:'省水類',q:'洗澡時要省水，可以怎麼做？',a:['開最大水量讓水比較快流出','邊洗邊聊天','縮短洗澡時間、關掉不需要的水流','一直調水溫玩'],ans:2},
-    {cat:'空氣品質類',q:'PM2.5 是什麼？',a:['溫度','香氣','氣體','很小的灰塵'],ans:3},
-    {cat:'空氣品質類',q:'想讓室內空氣更好，要怎麼做？',a:['開兩邊窗戶通風','噴香水','關緊門窗開冷氣','開電風扇吹'],ans:0},
-    {cat:'空氣品質類',q:'空氣品質不好的時候應該？',a:['多在外面跑跳','戴口罩','開窗吸空氣','點香掩蓋味道'],ans:1},
-    {cat:'空氣品質類',q:'哪一項行為有助於改善空氣？',a:['少開車','放煙火','燒垃圾','噴香水'],ans:0},
-    {cat:'空氣品質類',q:'空氣中太多廢氣會造成什麼？',a:['天空更亮','空氣污染','變冷','地球變大'],ans:1},
-    {cat:'減碳類',q:'下列哪一個行為最能減少碳排放？',a:['天天叫外送','開車載自己','騎機車兜風','搭公車'],ans:3},
-    {cat:'減碳類',q:'買飲料時怎麼做最減碳？',a:['用自己的環保杯','每次拿新杯子','喝完丟掉','拿吸管多一點'],ans:0},
-    {cat:'減碳類',q:'哪一項行為有助於減碳？',a:['多搭電梯','走樓梯','開冷氣','開燈整天'],ans:1},
-    {cat:'減碳類',q:'哪一種食物選擇最環保？',a:['進口水果','在地蔬菜','冷凍食品','外送炸雞'],ans:1},
-    {cat:'減碳類',q:'為什麼少吃牛肉可以減碳？',a:['牛吃太多草','牛會放出甲烷','肉太貴','牛太重'],ans:1},
-    {cat:'減碳類',q:'何者是「自然碳匯」之一？',a:['電線桿','汽車','工廠','森林'],ans:3},
-    {cat:'減碳類',q:'樹木對地球最大的幫助是？',a:['製造氧氣','裝飾街道','擋風','提供樹蔭'],ans:0},
-    {cat:'減碳類',q:'種樹能幫助減碳，是因為？',a:['樹會跑','樹會變色','樹會唱歌','樹會吸二氧化碳'],ans:3},
-    {cat:'減碳類',q:'學校可以怎麼一起減碳？',a:['下課關燈','電腦整天開著','冷氣18度','燈一直亮'],ans:0},
-    {cat:'減碳類',q:'我們日常生活中哪一項行為會造成最多碳排？',a:['開冷氣','畫畫','讀書','看書'],ans:0},
-    {cat:'溫室氣體類',q:'下列哪一種氣體是主要的溫室氣體？',a:['氧氣','二氧化碳','氫氣','氦氣'],ans:1},
-    {cat:'溫室氣體類',q:'為什麼地球會越來越熱？',a:['溫室氣體太多，熱氣跑不出去','太陽變大了','月亮變近了','空氣變少了'],ans:0},
-    {cat:'溫室氣體類',q:'下列哪一個屬於「用別人發的電」（範疇二）？',a:['澆花','騎腳踏車上學','拿家裡回收瓶罐','開冷氣、打開燈'],ans:3}
-  ];
-
-  // ✅ 取正確答案 index（相容 it.i 或 it.ans）
-  function getCorrectIndex(it){
-    if (typeof it.i === 'number') return it.i;
-    if (typeof it.ans === 'number') return it.ans;
-    return 0;
-  }
-
-  let stats={right:0,wrong:0};
-  function updateStats(){ $('statTotal').textContent=QUIZ.length; $('statRight').textContent=stats.right; $('statWrong').textContent=stats.wrong; const t=stats.right+stats.wrong; $('statAcc').textContent=t?Math.round(stats.right/t*100)+'%':'0%'; }
-
-  // 🔁 匯入模式（合併／覆蓋）
-  let importMode = localStorage.getItem('esg.importMode') || 'merge'; // 'merge' | 'overwrite'
-  const modeBtn = $('importModeBtn');
-  function renderImportMode(){
-    if (!modeBtn) return;
-    modeBtn.textContent = importMode === 'merge' ? '合併' : '覆蓋';
-    modeBtn.classList.toggle('merge', importMode==='merge');
-    modeBtn.classList.toggle('over', importMode==='overwrite');
-  }
-  renderImportMode();
-  modeBtn && modeBtn.addEventListener('click', ()=>{
-    importMode = (importMode==='merge') ? 'overwrite' : 'merge';
-    localStorage.setItem('esg.importMode', importMode);
-    renderImportMode();
-    toastInfo('CSV 匯入模式：<b>'+ (importMode==='merge'?'合併':'覆蓋') +'</b>');
-  });
-
-  // CSV 匯入：支援合併／覆蓋＋i/ans 相容
-  function csvToQuiz(text){
-    const lines=text.split(/\r?\n/).filter(x=>x.trim());
-    let add=0, skip=0;
-    if (importMode==='overwrite') {
-      QUIZ = [];
-    }
-    for(let idx=0; idx<lines.length; idx++){
-      const L = lines[idx];
-      const parts = [];
-      // 允許帶引號的 CSV：簡易 parse（逗號分隔，雙引號包）
-      let cur='', inQ=false;
-      for (let i=0;i<L.length;i++){
-        const ch=L[i], nx=L[i+1];
-        if (ch === '"' ){ inQ = !inQ; continue; }
-        if (ch === ',' && !inQ){ parts.push(cur); cur=''; continue; }
-        cur += ch;
-      }
-      parts.push(cur);
-      if(parts.length < 4){ skip++; continue; }
-      const cat = parts[0];
-      const q   = parts[1];
-      const aStr= parts[2];
-      const iStr= parts[3];
-      const why = parts[4] || '';
-      const a = String(aStr).split('|').map(s=>String(s).trim());
-      const i = parseInt(iStr,10);
-      if (!a.length || isNaN(i)){ skip++; continue; }
-      QUIZ.push({cat:String(cat).trim(), q:String(q).trim(), a, i, why:String(why).trim()});
-      add++;
-    }
-    updateStats();
-    if (importMode==='overwrite'){
-      toastError('🧹 <b style="color:#fecaca">覆蓋模式</b>｜題庫已重置，匯入 '+add+' 題，略過 '+skip+' 行', 4200);
-    }else{
-      toastSuccess('🌱 <b style="color:#bbf7d0">合併模式</b>｜新增 '+add+' 題，略過 '+skip+' 行', 3800);
-    }
-  }
-
-  function quizToCsv(){
-    const esc = (s)=> String(s==null?'':s).replace(/"/g,'""');
-    return QUIZ.map(function(it){
-      const _i = getCorrectIndex(it);
-      const why = '"'+esc(it.why||'')+'"';
-      return [it.cat, it.q, (it.a||[]).join('|'), _i, why].join(',');
-    }).join('\n');
-  }
-
-  let needCorrect=1, correctThisRound=0, qIndex=-1;
-  function openQuiz(n){ needCorrect=n; correctThisRound=0; $('quizModal').classList.add('show'); buildTabs(); renderQuiz(); }
-  function pickQuestion(){ const bag=[]; for(let i=0;i<QUIZ.length;i++){ const w=weight[QUIZ[i].cat]||1; for(let k=0;k<w;k++) bag.push(i); } return bag[Math.floor(Math.random()*bag.length)]||0; }
-  function renderQuiz(){ qIndex=pickQuestion(); const it=QUIZ[qIndex]; const box=$('quizBox'); let opts=''; for(let idx=0; idx<it.a.length; idx++){ const o=it.a[idx]; opts+='<label style="display:block;margin:6px 0"><input type="radio" name="q" value="'+idx+'"> '+o+'</label>'; } box.innerHTML='<div class="node"><b>['+(it.cat||'')+'] '+it.q+'</b>'+opts+'<div style="margin-top:8px"><button class="btn" id="submitQ">提交</button></div><div id="qFeedback" style="margin-top:6px;font-weight:900"></div></div>'; $('submitQ').addEventListener('click',checkQ); updateStats(); }
-  function checkQ(){ const it=QUIZ[qIndex]; const sel=document.querySelector('input[name="q"]:checked'); if(!sel) return; const correct = getCorrectIndex(it); if(+sel.value===correct){ blip(860,.12); $('qFeedback').textContent='✅ 答對了！'+(it.why?(' '+it.why):''); stats.right++; checkUnlocks(); correctThisRound++; plantTree('🌿'); if(correctThisRound>=needCorrect){ $('quizModal').classList.remove('show'); gameOver(true); } } else { blip(200,.12); $('qFeedback').textContent='❌ 再想想～ '+(it.why||''); stats.wrong++; } updateStats(); }
-  $('nextQ').addEventListener('click',renderQuiz);
-  $('importCsv').addEventListener('click',()=>{ const f=$('csvQ').files&&$('csvQ').files[0]; if(!f) return alert('請先選擇 .csv'); const fr=new FileReader(); fr.onload=e=>csvToQuiz(String((e.target&&e.target.result)||'')); fr.readAsText(f,'utf-8'); });
-  $('exportCsv').addEventListener('click',()=>{ const blob=new Blob([quizToCsv()],{type:'text/csv;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='quiz_export.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); });
-
-  // Facts
-  const FACTS=['冷氣每高 1°C 約省 6% 電','待機電力佔家戶 5–10%','LED 可省 50% 電','大眾運輸能降低人均排放','PM2.5 直徑小於 2.5μm','GHG 六類：CO₂、CH₄、N₂O、HFCs、PFCs、SF₆','S2：購入電/熱/冷造成的間接排放'];
-  function renderFacts(){ const ul=$('factsList'); ul.innerHTML=''; for(let i=0;i<FACTS.length;i++){ const li=document.createElement('li'); li.textContent=FACTS[i]; ul.appendChild(li); } }
-
-  // Leaderboard（本機 + 清空）
-  function saveLB(){ const raw=localStorage.getItem('esg.lb.v54')||'[]'; let arr=[]; try{arr=JSON.parse(raw)}catch(e){} arr.push({name:localStorage.getItem('esg.player')||'Player', lv:LV+1, score:score, trees:planted, ts:Date.now()}); arr.sort((a,b)=> b.score-a.score); arr=arr.slice(0,50); localStorage.setItem('esg.lb.v54', JSON.stringify(arr)); }
-  function renderLB(){ const raw=localStorage.getItem('esg.lb.v54')||'[]'; let arr=[]; try{arr=JSON.parse(raw)}catch(e){} const tb=$('lbBody'); tb.innerHTML=''; for(let i=0;i<arr.length;i++){ const r=arr[i]; const tr=document.createElement('tr'); const dt=new Date(r.ts); tr.innerHTML='<td>'+(i+1)+'</td><td>'+r.name+'</td><td>'+r.lv+'</td><td>'+r.score+'</td><td>'+r.trees+'</td><td>'+dt.toLocaleDateString()+'</td>'; tb.appendChild(tr); } }
-  async function pushOnline(){ const fb=$('firebaseUrl').value.trim(); const gs=$('sheetsUrl').value.trim(); const data=localStorage.getItem('esg.lb.v54')||'[]'; if(fb){ try{ await fetch(fb,{method:'POST',headers:{'Content-Type':'application/json'},body:data}); toastSuccess('Firebase 已上傳'); }catch(e){ alert('Firebase 上傳失敗：'+e.message); } } if(gs){ try{ await fetch(gs,{method:'POST',headers:{'Content-Type':'application/json'},body:data}); toastSuccess('Sheets 已上傳'); }catch(e){ alert('Sheets 上傳失敗：'+e.message); } } if(!fb&&!gs){ alert('請輸入 Firebase 或 Sheets 端點'); } }
-  async function pullOnline(){ const fb=$('firebaseUrl').value.trim(); const gs=$('sheetsUrl').value.trim(); try{ if(fb){ const r=await fetch(fb); const a=await r.json(); localStorage.setItem('esg.lb.v54', JSON.stringify(a)); } else if(gs){ const r=await fetch(gs); const a=await r.json(); localStorage.setItem('esg.lb.v54', JSON.stringify(a)); } else { return alert('請輸入端點'); } renderLB(); toastInfo('已更新'); }catch(e){ alert('更新失敗：'+e.message); } }
-
-  // GHG 任務清單（S1/S2/S3）
-  const GHG=[{s:'S1 直接排放', items:['鍋爐/發電機燃料紀錄','製程逸散排放記錄','冷媒補充量'], hint:'公司直接燃燒 / 製程 / 冷媒'},
-             {s:'S2 購入能源間接', items:['電費帳單（月）','蒸汽/冷/熱購買量','再生能源憑證'], hint:'外購電/熱/冷的間接排放'},
-             {s:'S3 其他間接', items:['通勤/差旅里程','上/下游運輸','廢棄物處理','資本財'], hint:'價值鏈上下游活動'}];
-  function renderGHG(){ const tb=$('ghgBody'); tb.innerHTML=''; for(let g=0; g<GHG.length; g++){ const x=GHG[g]; const tr=document.createElement('tr'); const items=x.items.map(function(s){return '<label class="node" style="display:flex;gap:8px;align-items:center"><input type="checkbox" class="ghg"> <span>'+s+'</span></label>';}).join(''); tr.innerHTML='<td style="width:180px;vertical-align:top"><b>'+x.s+'</b><div style="opacity:.75">'+x.hint+'</div></td><td style="vertical-align:top"><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px">'+items+'</div></td>'; tb.appendChild(tr); } }
-
-  // 任務（每日/每週）
-  function genDailyTasks(){ return [
-    {id:'dq1',text:'完成 1 次關卡',need:1},
-    {id:'dq2',text:'答對 3 題小知識',need:3},
-    {id:'dq3',text:'種下 3 棵樹',need:3}
-  ]; }
-  function genWeeklyTasks(){ return [
-    {id:'wq1',text:'累積 5 次通關',need:5},
-    {id:'wq2',text:'累積 20 題答對',need:20},
-    {id:'wq3',text:'累積 1000 分',need:1000},
-    {id:'wq4',text:'種下 30 棵樹',need:30},
-    {id:'wq5',text:'完成 5 項 GHG 清單勾選',need:5}
-  ]; }
-  function todayKey(){ const d=new Date(); return d.toISOString().slice(0,10); }
-  function weekKey(){ const d=new Date(); const base=new Date(d.getFullYear(),0,1); const wk=Math.ceil((((d-base)/86400000)+base.getDay()+1)/7); return d.getFullYear()+'-W'+wk; }
-  function ensureTasks(){ const dk='esg.daily.'+todayKey(), wk='esg.weekly.'+weekKey(); if(!localStorage.getItem(dk)){ localStorage.setItem(dk, JSON.stringify({tasks:genDailyTasks(),done:{}})); } if(!localStorage.getItem(wk)){ localStorage.setItem(wk, JSON.stringify({tasks:genWeeklyTasks(),done:{}})); } }
-  function taskLi(t,scope){ const done=(scope.done[t.id]); return '<li><div class="todo-top"><label><input type="checkbox" data-scope="'+scope.key+'" data-id="'+t.id+'" '+(done?'checked':'')+'> '+t.text+'</label><span class="todo-badge">'+(scope.key==='D'?'今日':'本週')+'</span></div><div class="todo-bar"><div class="todo-fill" style="width:'+(done?100:0)+'%"></div></div></li>'; }
-  function renderTasks(){ ensureTasks(); const dk='esg.daily.'+todayKey(), wk='esg.weekly.'+weekKey(); const D=JSON.parse(localStorage.getItem(dk)); const W=JSON.parse(localStorage.getItem(wk)); const ulD=$('dailyList'), ulW=$('weeklyList'); if(ulD){ ulD.innerHTML=D.tasks.map(function(t){return taskLi(t,{key:'D',done:D.done})}).join(''); } if(ulW){ ulW.innerHTML=W.tasks.map(function(t){return taskLi(t,{key:'W',done:W.done})}).join(''); }
-    Array.prototype.forEach.call(document.querySelectorAll('#questModal input[type="checkbox"]'),function(cb){ cb.addEventListener('change',onTaskToggle); }); }
-  function onTaskToggle(e){ ensureTasks(); const key=e.target.getAttribute('data-scope'); const id=e.target.getAttribute('data-id'); const store=(key==='D'?'esg.daily.'+todayKey():'esg.weekly.'+weekKey()); const data=JSON.parse(localStorage.getItem(store)); data.done[id]=e.target.checked; localStorage.setItem(store, JSON.stringify(data));
-    const li=e.target.closest('li'); if(li){ const fill=li.querySelector('.todo-fill'); if(fill) fill.style.width=e.target.checked?'100%':'0%'; } }
-
-  // 取名 / 綁定
-  function ensureName(){ if(!localStorage.getItem('esg.player')){ $('nameModal').classList.add('show'); } }
-  $('nameBtn').addEventListener('click',()=>{ $('nameInput').value = loadName(); $('nameModal').classList.add('show'); });
-  $('saveName').addEventListener('click',()=>{ const v=$('nameInput').value.trim()||'Player'; saveName(v); $('player').textContent=v; $('nameModal').classList.remove('show'); toastSuccess('名稱已更新'); });
-  $('resetName').addEventListener('click',()=>{ if(confirm('確定要把名稱重置為「Player」嗎？')){ saveName('Player'); $('player').textContent='Player'; toastInfo('名稱已重置'); } });
-
-  $('soundBtn').addEventListener('click',()=>{ soundOn=!soundOn; $('soundBtn').textContent=soundOn?'🔊':'🔈'; if(soundOn) blip(640,.1) });
-
-  // 開始/暫停
-  $('startBtn').addEventListener('click',()=>{ ensureName(); planted=0; $('trees').textContent=0; startLevel(0); });
-  $('pauseBtn').addEventListener('click',()=>{ running=false; clearInterval(spawnTimer); clearInterval(tickTimer); toastInfo('已暫停'); });
-
-  // Modal 綁定
-  $('mapBtn').addEventListener('click',()=>{ renderMap(); $('mapModal').classList.add('show'); });
-  $('resetProgress').addEventListener('click',()=>{ localStorage.setItem('esg.bestLV',1); toastInfo('進度已重置'); renderMap(); });
-  $('treeBtn').addEventListener('click',()=>{ renderDex(); $('treeModal').classList.add('show');
-    const header = document.querySelector('#treeModal h3');
-    if(header){ let pressTimer=null; const down=()=>{ pressTimer=setTimeout(()=>{ DEX.forEach(t=>{ t.unlocked=true; t.stage=2; }); saveDex(DEX); renderDex(); toastSuccess('🔓 已解鎖全部樹種！'); },2000); }; const up=()=>{ clearTimeout(pressTimer); };
-      header.addEventListener('mousedown',down); header.addEventListener('touchstart',down,{passive:true});
-      header.addEventListener('mouseup',up); header.addEventListener('mouseleave',up); header.addEventListener('touchend',up); }
-  });
-  $('factsBtn').addEventListener('click',()=>{ renderFacts(); $('factsModal').classList.add('show'); });
-  $('achBtn').addEventListener('click',()=>{ renderAch(); $('achModal').classList.add('show'); });
-  $('lbBtn').addEventListener('click',()=>{ renderLB(); $('lbModal').classList.add('show'); });
-  $('clearLB').addEventListener('click',()=>{
-    if(confirm('確定要清空本機排行榜嗎？（僅清除 localStorage: esg.lb.v54）')){
-      localStorage.removeItem('esg.lb.v54');
-      renderLB();
-      toastInfo('排行榜已清空');
-    }
-  });
-  $('pushOnline').addEventListener('click',pushOnline); $('pullOnline').addEventListener('click',pullOnline);
-
-  // 直接開啟小知識按鈕
-  $('quizBtn').addEventListener('click',()=>{ openQuiz(1); });
-
-  // 任務中心
-  $('questBtn').addEventListener('click',()=>{ renderTasks(); renderGHG(); $('questModal').classList.add('show'); bindQuestPager(); showQuestPage(0); });
-
-  // 關閉按鈕
-  Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function(b){
-    b.addEventListener('click',function(){ const id=b.getAttribute('data-close'); $(id).classList.remove('show'); });
-  });
-
-  // Music modal
-  $('musicBtn').addEventListener('click',()=>{ $('musicSel').value=musicMode; $('vol').value=Math.round(vol*100); $('musicModal').classList.add('show'); });
-  $('musicPreview').addEventListener('click',()=>{ const sel=$('musicSel').value; if(sel==='none') stopSeq(); else playTrack(sel==='auto'?'forest':sel); });
-  $('musicSave').addEventListener('click',()=>{ musicMode=$('musicSel').value; localStorage.setItem('esg.music',musicMode); vol=(+$('vol').value)/100; localStorage.setItem('esg.vol',Math.round(vol*100)); if(musicBus) musicBus.gain.value=vol; $('musicModal').classList.remove('show'); applyMusic((LEVELS[LV]&&LEVELS[LV].bg)||'forest'); });
-
-  // 任務 Pager
-  let questPage=0;
-  function questPageCount(){ return document.querySelectorAll('#questTrack .pager-page').length; }
-  function showQuestPage(i){
-    const max = questPageCount() - 1;
-    questPage = Math.max(0, Math.min(max, i));
-    const track=$('questTrack');
-    if(track){ track.style.transform='translateX(-'+(questPage*100)+'%)'; }
-    const dots=$('questDots');
-    if(dots){
-      dots.innerHTML='';
-      for(let k=0;k<questPageCount();k++){
-        const d=document.createElement('div');
-        d.className='pager-dot'+(k===questPage?' active':'');
-        d.addEventListener('click',(()=>{ const idx=k; return ()=>showQuestPage(idx); })());
-        dots.appendChild(d);
+    // ===== 月份分頁 =====
+    function buildMonthTabs(){
+      const wrap = document.getElementById('monthTabs');
+      wrap.innerHTML = '';
+      for(let m=1;m<=12;m++){
+        const b = document.createElement('button');
+        b.textContent = m+'月';
+        b.className = 'month-btn ' + (m===currentMonth?'month-active':'');
+        b.onclick = () => { save(); currentMonth = m; if(!store[m]) store[m]=[]; renderRows(); calc(); buildMonthTabs(); };
+        wrap.appendChild(b);
       }
     }
-  }
-  function bindQuestPager(){
-    $('questPrev') && $('questPrev').addEventListener('click',()=>showQuestPage(questPage-1));
-    $('questNext') && $('questNext').addEventListener('click',()=>showQuestPage(questPage+1));
-    const pager=$('questPager'); let sx=0,dx=0;
-    pager && pager.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dx=0;},{passive:true});
-    pager && pager.addEventListener('touchmove',e=>{dx=e.touches[0].clientX-sx;},{passive:true});
-    pager && pager.addEventListener('touchend',()=>{ if(Math.abs(dx)>50){ showQuestPage(questPage+(dx<0?1:-1)); } });
-  }
 
-  // 初始化
-  document.addEventListener('DOMContentLoaded',()=>{ renderDex(); renderFacts(); renderMap();
-    if(location.hash==='#unlockAll'){
-      DEX.forEach(t=>{ t.unlocked=true; t.stage=2; });
-      saveDex(DEX);
+    // ===== 列生成 =====
+    function trPresetRow(o){
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td>${o.name}</td>
+        <td>${o.category}</td>
+        <td>S${o.scope}</td>
+        <td><input type="number" value="${o.activity||0}" class="num activity"></td>
+        <td>${o.unit}</td>
+        <td>${o.factor}</td>
+        <td><input type="text" value="${o.dept||'總部'}"></td>
+        <td class="num emi">0</td>
+        <td><button class="text-red-500 del">刪</button></td>`;
+      return tr;
     }
-  });
-})();
-</script>
-
-<!-- ✅ PWA: register SW -->
-<!-- ✅ SW register: 支援 GitHub Pages 子路徑 -->
-<script>
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => {
-    // basePath 例如：/UDMgame/
-    const parts = location.pathname.split('/').filter(Boolean);
-    const basePath = parts.length ? `/${parts[0]}/` : '/';
-    const swUrl = `${basePath}sw.js`;
-    navigator.serviceWorker.register(swUrl, { scope: basePath })
-      .then(() => console.log('✅ Service Worker registered at', swUrl))
-      .catch(err => console.warn('SW register failed:', err));
-  });
-} else {
-  console.warn('SW disabled on non-http(s) origin.');
-}
-</script>
-
-
-<!-- 📲 PWA 安裝邏輯 -->
-<script>
-(function(){
-  const btn = document.getElementById('installBtn');
-  let deferredPrompt = null;
-
-  const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isStandalone = () =>
-    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-
-  if (isStandalone()) {
-    if (btn) btn.style.display = 'none';
-    return;
-  }
-
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    if (btn) btn.style.display = 'inline-block';
-  });
-
-  if (isIOS() && btn) {
-    btn.style.display = 'inline-block';
-  }
-
-  btn && btn.addEventListener('click', async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const r = await deferredPrompt.userChoice;
-      console.log('PWA install:', r.outcome);
-      deferredPrompt = null;
-      btn.style.display = 'none';
-    } else if (isIOS()) {
-      alert('📱 iOS：請在 Safari → 共享 → 加到主畫面');
-    } else {
-      alert('請在瀏覽器選單選擇「安裝應用程式」或「加到主畫面」。');
+    function trCustomRow(o){
+      const s = parseInt(o.scope||3);
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td><input list="itemList" type="text" value="${o.name||''}" placeholder="輸入或選擇項目"></td>
+        <td><input type="text" value="${o.category||''}"></td>
+        <td>
+          <select>
+            <option value="1" ${s===1?'selected':''}>S1</option>
+            <option value="2" ${s===2?'selected':''}>S2</option>
+            <option value="3" ${s===3?'selected':''}>S3</option>
+          </select>
+        </td>
+        <td><input type="number" value="${o.activity||0}" class="num activity"></td>
+        <td><input type="text" value="${o.unit||''}"></td>
+        <td><input type="number" value="${o.factor||0}" step="0.001"></td>
+        <td><input type="text" value="${o.dept||'總部'}"></td>
+        <td class="num emi">0</td>
+        <td><button class="text-red-500 del">刪</button></td>`;
+      return tr;
     }
-  });
 
-  window.addEventListener('appinstalled', () => {
-    console.log('✅ PWA installed');
-    if (btn) btn.style.display = 'none';
-    alert('安裝完成！從主畫面開啟更順暢 🌿');
-  });
-})();
-</script>
+    // ===== 新增/預設 =====
+    document.getElementById('btnAdd').onclick = () => tbody.appendChild(trCustomRow({scope:3}));
+    document.getElementById('btnPreset').onclick = () => {
+      tbody.innerHTML=''; PRESET.forEach(p=>tbody.appendChild(trPresetRow({...p,activity:0}))); save(); calc();
+    };
 
+    // ===== 儲存/載入（本機） =====
+    function gatherRows(){
+      return [...tbody.querySelectorAll('tr')].map(tr=>{
+        const t=tr.children;
+        const name=t[0].querySelector('input')?t[0].querySelector('input').value:t[0].textContent;
+        const category=t[1].querySelector('input')?t[1].querySelector('input').value:t[1].textContent;
+        const scopeStr=t[2].querySelector('select')?t[2].querySelector('select').value:t[2].textContent.replace('S','');
+        const scope=parseInt(scopeStr)||3;
+        const activity=parseFloat(t[3].querySelector('input').value)||0;
+        const unit=t[4].querySelector('input')?t[4].querySelector('input').value:t[4].textContent;
+        const factor=parseFloat(t[5].querySelector('input')?t[5].querySelector('input').value:t[5].textContent)||0;
+        const dept=t[6].querySelector('input').value||'';
+        return {name,category,scope,activity,unit,factor,dept};
+      });
+    }
+    function save(){
+      store[currentMonth] = gatherRows();
+      localStorage.setItem('carbonStore', JSON.stringify(store));
+      toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),1200);
+    }
+    function renderRows(){
+      tbody.innerHTML='';
+      (store[currentMonth]||[]).forEach(r=>{
+        if(SCOPE_FIX[r.name]) tbody.appendChild(trPresetRow(r));
+        else tbody.appendChild(trCustomRow(r));
+      });
+    }
+
+    // ===== 計算與圖表（以目前月份為主） =====
+    function calc(){
+      let total=0, actSum=0;
+      [...tbody.querySelectorAll('tr')].forEach(tr=>{
+        const act=parseFloat(tr.querySelector('.activity')?.value)||0;
+        const factor=parseFloat(tr.children[5].textContent || tr.children[5].querySelector('input')?.value)||0;
+        const emi=act*factor;
+        tr.querySelector('.emi').textContent = emi.toFixed(3);
+        total+=emi; actSum+=act;
+      });
+      sumTotal.textContent = total.toFixed(3);
+      sumAct.textContent   = actSum.toFixed(2);
+      save(); updateCharts();
+    }
+    document.getElementById('btnCalc').onclick = calc;
+    tbody.addEventListener('input', calc);
+    tbody.addEventListener('click', e=>{ if(e.target.classList.contains('del')){ e.target.closest('tr').remove(); calc(); } });
+
+    function updateCharts(){
+      const rows=store[currentMonth]||[];
+      const labels=rows.map(r=>r.name);
+      const emis=rows.map(r=>(r.activity*r.factor));
+      const byScope={S1:0,S2:0,S3:0}, byDept={};
+      rows.forEach(r=>{
+        const s='S'+(r.scope||3);
+        const emi=(r.activity||0)*(r.factor||0);
+        byScope[s]+=emi;
+        byDept[r.dept]=(byDept[r.dept]||0)+emi;
+      });
+
+      charts.items?.destroy(); charts.scopes?.destroy(); charts.dept?.destroy();
+      charts.items=new Chart(document.getElementById('chartItems'),{
+        type:'bar', data:{labels,datasets:[{label:'排放量',data:emis}]},
+        options:{responsive:true,plugins:{legend:{display:false}}}
+      });
+      charts.scopes=new Chart(document.getElementById('chartScopes'),{
+        type:'pie', data:{labels:Object.keys(byScope),datasets:[{data:Object.values(byScope)}]}
+      });
+      charts.dept=new Chart(document.getElementById('chartDept'),{
+        type:'bar', data:{labels:Object.keys(byDept),datasets:[{label:'部門',data:Object.values(byDept)}]},
+        options:{indexAxis:'y',plugins:{legend:{display:false}}}
+      });
+    }
+
+    // ===== Excel（.xlsx） =====
+    function rowsToSheet(rows, meta){
+      const company=(meta?.company || companyNameEl.value || '公司名稱').trim();
+      const year=meta?.year || parseInt(fiscalYearEl.value) || new Date().getFullYear();
+      const header=['項目','分類','範疇(S1/S2/S3)','用量','單位','排放係數','部門','排放量(kgCO2e)'];
+      const data=[['公司名稱',company],['年度',String(year)],[],header];
+      rows.forEach(r=>{
+        data.push([r.name,r.category,'S'+(r.scope||3),r.activity||0,r.unit||'',r.factor||0,r.dept||'',((r.activity||0)*(r.factor||0)).toFixed(3)]);
+      });
+      const ws=XLSX.utils.aoa_to_sheet(data);
+      ws['!cols']=[{wch:16},{wch:22},{wch:14},{wch:12},{wch:10},{wch:16},{wch:16},{wch:18}];
+      ws['!freeze']={xSplit:0,ySplit:4};
+      return ws;
+    }
+    function getMonthRows(m){ return (store[m]||[]); }
+
+    document.getElementById('btnExportXlsxMonth').onclick=()=>{
+      calc();
+      const meta=JSON.parse(localStorage.getItem(META_KEY)||'{}');
+      const wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, rowsToSheet(getMonthRows(currentMonth),meta), `${currentMonth}月`);
+      const company=(meta.company||companyNameEl.value||'公司').replace(/[\\\/:*?"<>|]/g,'_');
+      const year=meta.year||parseInt(fiscalYearEl.value)||new Date().getFullYear();
+      XLSX.writeFile(wb, `${company}_碳盤查_${year}_${currentMonth}月.xlsx`);
+    };
+
+    document.getElementById('btnExportXlsxYear').onclick=()=>{
+      calc();
+      const meta=JSON.parse(localStorage.getItem(META_KEY)||'{}');
+      const wb=XLSX.utils.book_new();
+      for(let m=1;m<=12;m++){
+        XLSX.utils.book_append_sheet(wb, rowsToSheet(getMonthRows(m),meta), `${m}月`);
+      }
+      const company=(meta.company||companyNameEl.value||'公司名稱').replace(/[\\\/:*?"<>|]/g,'_');
+      const year=meta.year||parseInt(fiscalYearEl.value)||new Date().getFullYear();
+
+      // 年度彙總
+      const byScope={S1:0,S2:0,S3:0}, byDept={};
+      for(let m=1;m<=12;m++){
+        (store[m]||[]).forEach(r=>{
+          const s='S'+(parseInt(r.scope)||3);
+          const emi=(parseFloat(r.activity)||0)*(parseFloat(r.factor)||0);
+          byScope[s]+=emi; const d=r.dept||'總部'; byDept[d]=(byDept[d]||0)+emi;
+        });
+      }
+      const summary=[['公司名稱', (meta.company||companyNameEl.value||'公司名稱')], ['年度', String(year)], [], ['年度彙總','kgCO2e'],
+                     ['S1',byScope.S1],['S2',byScope.S2],['S3',byScope.S3],[],['部門','kgCO2e']];
+      Object.keys(byDept).forEach(k=>summary.push([k,byDept[k]]));
+      const wsSum=XLSX.utils.aoa_to_sheet(summary); wsSum['!cols']=[{wch:16},{wch:22}];
+      XLSX.utils.book_append_sheet(wb, wsSum, '年度彙總');
+
+      XLSX.writeFile(wb, `${company}_碳盤查_${year}_全年.xlsx`);
+    };
+
+    // ===== PDF 匯出（以目前月份圖表產出，標題含公司＋年月） =====
+    function rafWait(frames=2){ return new Promise(res=>{ const step=n=>{ if(n<=0) return res(); requestAnimationFrame(()=>step(n-1)); }; step(frames); }); }
+    document.getElementById('exportPDF').onclick = async ()=>{
+      try{
+        calc(); updateCharts(); await rafWait(2);
+        if(!window.PDFLib) throw new Error('pdf-lib 未載入');
+        const meta=JSON.parse(localStorage.getItem(META_KEY)||'{}');
+        const company=(meta.company||companyNameEl.value||'公司名稱').trim();
+        const year=meta.year||parseInt(fiscalYearEl.value)||new Date().getFullYear();
+        const month=currentMonth;
+
+        const c1=document.getElementById('chartItems');
+        const c2=document.getElementById('chartScopes');
+        const c3=document.getElementById('chartDept');
+        const img1=c1.toDataURL('image/png',1.0);
+        const img2=c2.toDataURL('image/png',1.0);
+        const img3=c3.toDataURL('image/png',1.0);
+
+        const {PDFDocument,StandardFonts,rgb}=PDFLib;
+        const pdf=await PDFDocument.create();
+        const page=pdf.addPage([842,595]); // A4 橫式
+        const font=await pdf.embedFont(StandardFonts.Helvetica);
+        page.setFont(font); page.setFontSize(18);
+        page.drawText(`${company}｜碳盤查月報（${year} 年 ${month} 月）`,{x:40,y:560,color:rgb(0,0.4,0.2)});
+        page.setFontSize(12);
+        page.drawText(`總排放量（${month}月）：${sumTotal.textContent} kgCO₂e`,{x:40,y:535});
+
+        const p1=await pdf.embedPng(img1), p2=await pdf.embedPng(img2), p3=await pdf.embedPng(img3);
+        page.drawImage(p1,{x:40,y:300,width:360,height:200});
+        page.drawImage(p2,{x:430,y:300,width:360,height:200});
+        page.drawImage(p3,{x:40,y:70,width:750,height:200});
+
+        const bytes=await pdf.save();
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+        const safeCompany=company.replace(/[\\\/:*?"<>|]/g,'_');
+        a.download=`${safeCompany}_ESG_Report_${year}_M${month}.pdf`;
+        a.click();
+      }catch(err){ alert('PDF 匯出失敗：'+err.message); }
+    };
+
+    // ===== Git 讀寫（Netlify Functions） =====
+    function slugifyCompany(name){
+      return (name||'').trim().replace(/[\\\/:*?"<>|.\s]+/g,'_').toLowerCase();
+    }
+    function getCurrentMeta(){
+      const meta = JSON.parse(localStorage.getItem(META_KEY)||'{}');
+      return {
+        company: (meta.company || companyNameEl.value || '公司名稱').trim(),
+        year: meta.year || parseInt(fiscalYearEl.value) || new Date().getFullYear()
+      };
+    }
+
+    async function loadFromGit(){
+      const { company, year } = getCurrentMeta();
+      const slug = slugifyCompany(company);
+      const url = `https://raw.githubusercontent.com/Sethjesus/Carboninventory/main/data/${slug}_${year}.json`;
+      try{
+        const res = await fetch(url, { cache: 'no-store' });
+        if(!res.ok){ alert('找不到雲端資料，仍使用本機資料'); return; }
+        const json = await res.json();
+        store = json.months || {};
+        // 下拉候選
+        const dl = document.getElementById('itemList');
+        const names = new Set();
+        Object.values(store).flat().forEach(r=>{ if(r?.name) names.add(r.name) });
+        ['電力','水','交通','車用汽油','柴油','天然氣','團體膳食','洗潔精','衛生紙','廢(污)水處理'].forEach(n=>names.add(n));
+        dl.innerHTML = [...names].map(n=>`<option value="${n}"></option>`).join('');
+        if(!store[currentMonth]) currentMonth = new Date().getMonth()+1;
+        renderRows(); calc(); updateCharts();
+        toastIt('已從 Git 載入');
+      }catch(e){
+        alert('載入失敗：'+e.message);
+      }
+    }
+
+    async function saveToGit(){
+      const { company, year } = getCurrentMeta();
+      save(); // 先把目前月回存到 store
+      try{
+        const resp = await fetch('/.netlify/functions/save', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ company, year, months: store })
+        });
+        const r = await resp.json();
+        if(!resp.ok) throw new Error(r.error || resp.statusText);
+        toastIt('已存到 Git ✅');
+      }catch(e){
+        alert('存到 Git 失敗：'+e.message);
+      }
+    }
+
+    function toastIt(msg){
+      const prev = toast.textContent;
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(()=>{ toast.classList.remove('show'); toast.textContent=prev; }, 1500);
+    }
+
+    document.getElementById('btnLoadGit').onclick = loadFromGit;
+    document.getElementById('btnSaveGit').onclick = saveToGit;
+
+    // ===== 主題 & 初始化 =====
+    function applyTheme(t){ document.documentElement.classList.toggle('dark', t==='dark'); localStorage.setItem(LS_THEME,t); }
+    themeToggle.onclick = ()=>{ const isDark=document.documentElement.classList.contains('dark'); applyTheme(isDark?'light':'dark'); };
+    applyTheme(localStorage.getItem(LS_THEME)||'light');
+
+    function init(){
+      buildMonthTabs();
+      // 預設下拉（先放預設10項）
+      document.getElementById('itemList').innerHTML = PRESET.map(p=>`<option value="${p.name}"></option>`).join('');
+      if(!store[currentMonth]) store[currentMonth]=[];
+      if(store[currentMonth].length===0){ tbody.innerHTML=''; PRESET.forEach(p=>tbody.appendChild(trPresetRow({...p,activity:0}))); save(); }
+      renderRows(); calc();
+      if('serviceWorker' in navigator){ navigator.serviceWorker.register('service-worker.js').catch(()=>{}); }
+    }
+    init();
+  </script>
+</main>
 </body>
 </html>
